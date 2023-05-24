@@ -4,28 +4,37 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"testing"
 	"time"
 )
 
-func TestAll() {
+func TestAll(t *testing.T) {
 	rand.Seed(time.Now().UnixNano())
 
 	h := NewHadamard()
 
 	a, err := Operate(h, NewZero())
 	if err != nil {
-		log.Fatal(err)
+		t.Fatal(err)
+	}
+
+	a_test := Tensor([]complex128{ONE_OVER_ROOT_2 + 0i, ONE_OVER_ROOT_2 + 0i})
+	if !a.Equals(&a_test) {
+		t.Errorf("hadamard gate failed. expected %v. got %v", a_test, a)
 	}
 
 	b := NewZero()
-
 	ab := TensorProduct(a, b)
-
 	c := NewZero()
-
 	abc := TensorProduct(ab, c)
 
-	fmt.Println(abc)
+	// [(0.70710678118+0i) (0+0i) (0+0i) (0+0i) (0.70710678118+0i) (0+0i) (0+0i) (0+0i)]
+	abc_test := Tensor(make([]complex128, 8))
+	abc_test[0] = 0.70710678118 + 0i
+	abc_test[4] = 0.70710678118 + 0i
+	if !abc.Equals(&abc_test) {
+		t.Errorf("tensor product failed. expected %v. got %v", abc_test, abc)
+	}
 
 	i := NewIdentity()
 	cn := NewCNOT()

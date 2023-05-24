@@ -1,6 +1,6 @@
 package qc
 
-import  (
+import (
 	"errors"
 )
 
@@ -59,7 +59,7 @@ func MatMul(b, a Gate) (Gate, error) {
 	szb := len(b)
 
 	if sza != szb {
-		return a, errors.New("Gate sizes do not match")
+		return a, errors.New("gate sizes do not match")
 	}
 
 	out := make(Gate, sza)
@@ -69,10 +69,10 @@ func MatMul(b, a Gate) (Gate, error) {
 
 	for y := 0; y < sza; y++ {
 		if len(a[y]) != sza {
-			return a, errors.New("Gate matrix is not square")
+			return a, errors.New("gate matrix is not square")
 		}
 		if len(b[y]) != sza {
-			return a, errors.New("Gate matrix is not square")
+			return a, errors.New("gate matrix is not square")
 		}
 
 		for x := 0; x < sza; x++ {
@@ -117,13 +117,13 @@ func KroneckerProduct(a, b Gate) (Gate, error) {
 
 	for y := 0; y < sza; y++ {
 		if len(a[y]) != sza {
-			return a, errors.New("Gate matrix is not square")
+			return a, errors.New("gate matrix is not square")
 		}
 
 		for x := 0; x < sza; x++ {
 			for j := 0; j < szb; j++ {
 				if len(b[j]) != szb {
-					return a, errors.New("Matrix is not square")
+					return a, errors.New("matrix is not square")
 				}
 
 				for i := 0; i < szb; i++ {

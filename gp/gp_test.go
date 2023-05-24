@@ -2,14 +2,11 @@ package gp
 
 import (
 	"fmt"
+	"testing"
 )
 
-func TestAll() {
-	TestGrammar()
-}
-
-func TestGrammar() {
-	rules, symbolNames := LoadRulesFromFile("./gp/grammars/clifford_plus_t.grmr")
+func TestGrammar(t *testing.T) {
+	rules, symbolNames := LoadRulesFromFile("./grammars/clifford_plus_t.grmr")
 
 	a := RootNodeFromRules(rules, symbolNames)
 	// op

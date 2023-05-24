@@ -16,19 +16,19 @@ func NewVertex() *Vertex {
 	v := Vertex{
 		LowerIndices: make([]int, 0),
 		UpperIndices: make([]int, 0),
-		Value: make([]complex128, 0),
+		Value:        make([]complex128, 0),
 	}
 
 	return &v
 }
 
-func (v *Vertex) Index(indices ...int) []int {
+func (v *Vertex) Index(indices ...int) complex128 {
 	i := 0
 	l := len(indices)
 
 	// n will always be 0 or 1
 	for m, n := range indices {
-		i += math.Pow(2, l-m) * n
+		i += int(math.Pow(2, float64(l-m))) * n
 	}
 
 	return v.Value[i]
@@ -40,19 +40,19 @@ func (v *Vertex) Set(value complex128, indices ...int) {
 
 	// n will always be 0 or 1
 	for m, n := range indices {
-		i += math.Pow(2, l-m) * n
+		i += int(math.Pow(2, float64(l-m))) * n
 	}
 
 	v.Value[i] = value
 }
 
-func (v *Vertex) IterateAlongLower(index int) {
+func (v *Vertex) IterateAlongLower(index int) [][]int {
 	out := [][]int{
 		make([]int, 0),
 		make([]int, 0),
 	}
 
-	for i, val := range v.LowerIndices {
+	for _, val := range v.LowerIndices {
 		if val == index {
 			continue
 		}
@@ -64,7 +64,7 @@ func (v *Vertex) IterateAlongLower(index int) {
 	return out
 }
 
-func (v *Vertex) IterateAlongUpper(index int) {
+func (v *Vertex) IterateAlongUpper(index int) [][]int {
 	out := [][]int{
 		make([]int, 0),
 		make([]int, 0),
@@ -72,7 +72,7 @@ func (v *Vertex) IterateAlongUpper(index int) {
 
 	out[0] = append(out[0], v.LowerIndices...)
 
-	for i, val := range v.UpperIndices {
+	for _, val := range v.UpperIndices {
 		if val == index {
 			continue
 		}
@@ -96,8 +96,8 @@ func toIndices(n, d int) []int {
 	out := make([]int, d)
 
 	mod := int(math.Pow(2, float64(d)))
-	for i := d-1; i >= 0; i-- {
-		out[i] = n%mod >> i
+	for i := d - 1; i >= 0; i-- {
+		out[i] = n % mod >> i
 		mod = mod >> 1
 	}
 
@@ -105,8 +105,10 @@ func toIndices(n, d int) []int {
 }
 
 // Given values for each index, a Contraction Index Value (civ), and a key for
-//  which indices to care about + where the contraction index is, output an
-//  index for getting a value from a tensor
+//
+//	which indices to care about + where the contraction index is, output an
+//	index for getting a value from a tensor
+//
 // [1 0 1 0 1 0], [1], [[5] [4 5]] -> [1 0 1 1 0]
 func joinIndices(indices []int, civ int, key [][]int) []int {
 	out := make([]int, 0)
@@ -115,7 +117,7 @@ func joinIndices(indices []int, civ int, key [][]int) []int {
 		out = append(out, indices[v])
 	}
 
-	out == append(out, civ)
+	out = append(out, civ)
 
 	di := len(indices) >> 1
 	for _, v := range key[1] {
@@ -135,56 +137,19 @@ func (e *Edge) Contract() *Vertex {
 	uvKey := uv.IterateAlongLower(e.UpperIndex)
 
 	rank := len(v.LowerIndices) + len(v.UpperIndices)
-	exp := math.Pow(2.0, float64(rank))
+	exp := int(math.Pow(2.0, float64(rank)))
 	for i := 0; i < exp; i++ {
-		indices = toIndices(i, rank)
+		indices := toIndices(i, rank)
 
-		var value complex128 := 0
+		var value complex128 = 0
 		for j := 0; j < 2; j++ {
-			lvIndices = joinIndices(indices, j, lvKey)
-			uvIndices = joinIndices(indices, j, uvKey)
-			value += lv.Index(lvIndices...) * uv.Index(lvIndices...)
+			lvIndices := joinIndices(indices, j, lvKey)
+			uvIndices := joinIndices(indices, j, uvKey)
+			value += lv.Index(lvIndices...) * uv.Index(uvIndices...)
 		}
 
 		v.Set(value, indices...)
 	}
-}
 
-func test() {
-	q0 := NewVertex()
-	q0.UpperIndices = []int{0}
-	q0.Value = []int{1, 0}
-
-	q1 := NewVertex()
-	q1.UpperIndices = []int{1}
-	q1.Value = []int{0, 1}
-
-	q2 := NewVertex()
-	q2.UpperIndices = []int{2}
-	q2.Value = []int{1, 0}
-
-	cn1 := NewVertex()
-	cn1.LowerIndices := []int{1, 2}
-	cn1.UpperIndices := []int{1, 2}
-	cn1.Value = []int{
-		1,0,0,0,
-		0,1,0,0,
-		0,0,0,1,
-		0,0,1,0
-	}
-
-	cn2 := NewVertex()
-	cn2.LowerIndices := []int{0, 1}
-	cn2.UpperIndices := []int{0, 1}
-	cn2.Value = []int{
-		1,0,0,0,
-		0,1,0,0,
-		0,0,0,1,
-		0,0,1,0
-	}
-
-	x := NewVertex()
-	x.LowerIndices = []int{0}
-	x.UpperIndices = []int{0}
-	x.Value = []int{0, 1, 1, 0}
+	return v
 }

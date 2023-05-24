@@ -47,3 +47,13 @@ func TensorProduct(l, r Tensor) Tensor {
 
 	return out
 }
+
+func (t *Tensor) Equals(r *Tensor) bool {
+	for i, v := range *t {
+		if v != (*r)[i] {
+			return false
+		}
+	}
+
+	return true
+}

@@ -9,10 +9,10 @@ import (
 	"github.com/TylerLeite/neuro-q/qc"
 )
 
-func test() {
-	qc.TestAll()
-	gp.TestAll()
-}
+// func test() {
+// 	qc.TestAll()
+// 	gp.TestAll()
+// }
 
 func compileSyntaxTree(t *gp.DerivationTree) qc.Gate {
 	I := qc.NewIdentity()
