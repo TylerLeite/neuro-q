@@ -4,9 +4,9 @@ import (
 	_ "fmt"
 )
 
-var nextId uint64 = 0
+// var nextId uint64 = 0
 
-const fnLength = 2
+// const fnLength = 2
 
 type GraphPart interface {
 	CalculateValue() float64
