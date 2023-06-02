@@ -3,6 +3,7 @@ package neat
 import "math/rand"
 
 // TODO: node genes, will they always just work out if they go sensor -> output -> hidden?
+// TODO: bias flag for nodes
 type Graph struct {
 	Connections []*Connection
 	SensorNodes []uint
@@ -22,8 +23,41 @@ func (g *Graph) AdjustedFitness(s *Species) float64 {
 // NOTE: need to map innovation numbers within a generation to specific mutations
 // -> keep a list of innovations that occurred in this generation
 
-func (g *Graph) AddConnectionMutation(mutations map[string]uint) {
-	//
+func (g *Graph) AddConnectionMutation(mutations map[string]uint, feedForward bool) {
+	nIn := len(g.SensorNodes) + len(g.HiddenNodes)
+	nOut := len(g.HiddenNodes) + len(g.OutputNodes)
+
+	// Are both nodes hidden? then order the edge small -> low
+	isHidden := false
+
+	r1 := rand.Intn(nIn)
+	if r1 >= len(g.SensorNodes) {
+		r1 -= len(g.SensorNodes)
+		r1 = int(g.HiddenNodes[r1])
+		isHidden = true
+	} else {
+		r1 = int(g.SensorNodes[r1])
+	}
+
+	r2 := r1
+
+	for r2 == r1 {
+		r2 = rand.Intn(nOut)
+		if r2 >= len(g.HiddenNodes) {
+			r2 -= len(g.HiddenNodes)
+			r2 = int(g.OutputNodes[r2])
+			isHidden = false
+		} else {
+			r2 = int(g.HiddenNodes[r2])
+		}
+	}
+
+	if feedForward && isHidden && r2 < r1 {
+		r1, r2 = r2, r1
+	}
+
+	connection := NewConnection(uint(r1), uint(r2), rand.Float64(), mutations)
+	g.Connections = append(g.Connections, connection)
 }
 
 func (g *Graph) AddNodeMutation(mutations map[string]uint) {

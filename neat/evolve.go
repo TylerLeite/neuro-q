@@ -5,7 +5,7 @@ import (
 	"math/rand"
 )
 
-// TODO: also pass map of changes to innovation numbers, reset map after each generation
+// TODO: double check g1, g2.Connections sorted by innovation number is an invariant
 func Crossover(g1, g2 *Graph) *Graph {
 	// Need to know which parent is more fit for inheriting excess and disjoint genes
 	moreFitParent := g1
@@ -49,6 +49,10 @@ func Crossover(g1, g2 *Graph) *Graph {
 			}
 
 			// If either gene is disabled, there is a 75% chance the inherited gene is disabled as well
+			// (as long as it's safe to do so)
+			// if !g1.Connections[i1].Enabled || !g2.Connections[i2].Enabled && rand.Intn(4) == 0 {
+			// 	g.Connections[len(g.Connections)-1].Enabled = false
+			// }
 
 			i1 += 1
 			i2 += 1
@@ -152,6 +156,8 @@ func SeparateIntoSpecies(currentPopulation Population, previousSpecies []Species
 }
 
 // Initialize population with no hidden layers
+// TODO: for specifications with high input*output nodes, add some hidden layers instead
+// Also can leave some inputs disconnected in such cases
 func InitializePopulation(inNodes uint, outNodes uint, size int) (Population, []Species) {
 	firstGenerationMutations := make(map[string]uint)
 
@@ -217,4 +223,4 @@ func Gogogo() {
 // addNode = 0.03
 // addConnection = 0.05
 
-// transfer function = p(x) = 1 / (1 + e^-4.9x)
+// activation function = p(x) = 1 / (1 + e^-4.9x)

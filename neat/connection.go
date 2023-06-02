@@ -4,11 +4,20 @@ import "fmt"
 
 var NextInnovationNumber uint
 
+type MutationType uint8
+
+const (
+	MutationAddNode MutationType = iota
+	MutationAddEdge
+)
+
 type Connection struct {
-	InNode           uint
-	OutNode          uint
-	Enabled          bool
-	Weight           float64
+	InNode  uint
+	OutNode uint
+	Enabled bool
+	Weight  float64
+
+	Origin           MutationType
 	InnovationNumber uint
 }
 
@@ -25,6 +34,7 @@ func NewConnection(in, out uint, weight float64, mutations map[string]uint) *Con
 		InnovationNumber: 0,
 	}
 
+	// Track innovations at the source of new connection genes, this way the check is never missed + changes are localized here
 	if innovationNumber, ok := mutations[c.Repr()]; ok {
 		c.InnovationNumber = innovationNumber
 	} else {
