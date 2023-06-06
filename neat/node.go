@@ -1,4 +1,4 @@
-package cppn
+package neat
 
 import (
 	"math"
@@ -6,6 +6,11 @@ import (
 )
 
 type ActivationState int8
+type ActivationFunction func(float64) float64
+
+func SigmoidFunc(x float64) float64 {
+	return 1.0 / (1.0 + math.Exp(-4.9*x))
+}
 
 const (
 	Unactivated ActivationState = iota
@@ -20,11 +25,11 @@ type Node struct {
 	state ActivationState
 	lock  *sync.Cond
 
-	fn    Func // activation function
+	fn    ActivationFunction // activation function
 	value float64
 }
 
-func NewNode(activation Func) *Node {
+func NewNode(activation ActivationFunction) *Node {
 	n := new(Node)
 	n.In = make([]*Edge, 0)
 	n.Out = make([]*Edge, 0)

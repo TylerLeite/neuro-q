@@ -6,6 +6,8 @@ import (
 	"image/png"
 	"os"
 	"testing"
+
+	"github.com/TylerLeite/neuro-q/neat"
 )
 
 func TestImage(t *testing.T) {
@@ -13,15 +15,15 @@ func TestImage(t *testing.T) {
 
 	f01, _ := RandomFunc()
 	f02, _ := RandomFunc()
-	xIn := NewNode(f01)
-	yIn := NewNode(f02)
+	xIn := neat.NewNode(f01)
+	yIn := neat.NewNode(f02)
 
 	f11, _ := RandomFunc()
 	f12, _ := RandomFunc()
 	f13, _ := RandomFunc()
-	inner1 := NewNode(f11)
-	inner2 := NewNode(f12)
-	inner3 := NewNode(f13)
+	inner1 := neat.NewNode(f11)
+	inner2 := neat.NewNode(f12)
+	inner3 := neat.NewNode(f13)
 
 	xIn.AddChild(inner1)
 	yIn.AddChild(inner2)
@@ -32,9 +34,9 @@ func TestImage(t *testing.T) {
 	f21, _ := RandomFunc()
 	f22, _ := RandomFunc()
 	f23, _ := RandomFunc()
-	rOut := NewNode(f21)
-	gOut := NewNode(f22)
-	bOut := NewNode(f23)
+	rOut := neat.NewNode(f21)
+	gOut := neat.NewNode(f22)
+	bOut := neat.NewNode(f23)
 
 	inner1.AddChild(rOut)
 	inner2.AddChild(gOut)
@@ -69,14 +71,14 @@ func TestImage(t *testing.T) {
 }
 
 func TestGeneration(t *testing.T) {
-	xIn := NewNode(IdentityFunc)
-	yIn := NewNode(IdentityFunc)
+	xIn := neat.NewNode(IdentityFunc)
+	yIn := neat.NewNode(IdentityFunc)
 
 	const layerNum = 6
-	layers := make([][]*Node, layerNum)
+	layers := make([][]*neat.Node, layerNum)
 
 	// Layer 0 is input nodes
-	layers[0] = make([]*Node, 2)
+	layers[0] = make([]*neat.Node, 2)
 	layers[0][0] = xIn
 	layers[0][1] = yIn
 
@@ -85,11 +87,11 @@ func TestGeneration(t *testing.T) {
 		nodesInLayer := dieRolls[layerIdx]
 		// To be random:
 		// nodesInLayer := rand.Intn(8) + 1
-		layers[layerIdx] = make([]*Node, nodesInLayer)
+		layers[layerIdx] = make([]*neat.Node, nodesInLayer)
 
 		for nodeIdx := 0; nodeIdx < nodesInLayer; nodeIdx += 1 {
 			fn, _ := RandomFunc()
-			node := NewNode(fn)
+			node := neat.NewNode(fn)
 			layers[layerIdx][nodeIdx] = node
 
 			// Try to find a parent for this new node in the previous layer
@@ -127,9 +129,9 @@ func TestGeneration(t *testing.T) {
 		}
 	}
 
-	rOut := NewNode(AbsFunc)
-	gOut := NewNode(AbsFunc)
-	bOut := NewNode(AbsFunc)
+	rOut := neat.NewNode(AbsFunc)
+	gOut := neat.NewNode(AbsFunc)
+	bOut := neat.NewNode(AbsFunc)
 
 	lastLayerIndices := []int{4, 2, 5, 3, 0, 1}
 	// To be random instead:

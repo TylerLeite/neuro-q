@@ -1,11 +1,10 @@
-package cppn
+package neat
 
 import (
 	_ "fmt"
 	"math/rand"
 
 	"github.com/TylerLeite/neuro-q/ma"
-	"github.com/TylerLeite/neuro-q/neat"
 )
 
 // var nextId uint64 = 0
@@ -21,7 +20,7 @@ type Network struct {
 	Nodes []*Node
 	Edges []*Edge
 
-	DNA        *neat.Genome
+	DNA        *Genome
 	isCompiled bool
 
 	// Because fitness function is defined on populations and crossover is defined on organisms, need a reference here
@@ -39,7 +38,7 @@ func NilNetwork() *Network {
 	return &n
 }
 
-func NewNetwork(dna *neat.Genome, p *ma.Population) *Network {
+func NewNetwork(dna *Genome, p *ma.Population) *Network {
 	n := Network{
 		Nodes:      make([]*Node, 0),
 		Edges:      make([]*Edge, 0),
@@ -52,7 +51,7 @@ func NewNetwork(dna *neat.Genome, p *ma.Population) *Network {
 }
 
 func (n *Network) Copy() ma.Organism {
-	copyDna := n.DNA.Copy().(*neat.Genome)
+	copyDna := n.DNA.Copy().(*Genome)
 	out := NewNetwork(copyDna, n.Population)
 	return ma.Organism(out)
 }
@@ -75,11 +74,11 @@ func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 		moreFitParent = n2
 	}
 
-	g1 := n.GeneticCode().(*neat.Genome)
-	g2 := n2.GeneticCode().(*neat.Genome)
+	g1 := n.GeneticCode().(*Genome)
+	g2 := n2.GeneticCode().(*Genome)
 
-	g := neat.Genome{
-		Connections: make([]*neat.EdgeGene, 0),
+	g := Genome{
+		Connections: make([]*EdgeGene, 0),
 		SensorNodes: make([]uint, 0),
 		HiddenNodes: make([]uint, 0),
 		OutputNodes: make([]uint, 0),
@@ -147,7 +146,7 @@ func (n *Network) GeneticCode() ma.GeneticCode {
 }
 
 func (n *Network) LoadGeneticCode(dna ma.GeneticCode) {
-	n.DNA = dna.(*neat.Genome)
+	n.DNA = dna.(*Genome)
 }
 
 // TODO: check for errors e.g. loops in feed-forward networks, connections between nonexistant nodes, etc.
@@ -161,17 +160,17 @@ func (n *Network) Compile() error {
 	// TODO: support for other activation functions
 	// Also there is probably a slightly cleaner way of doing this than 3 nearly identical loops but oh well
 	for _, v := range n.DNA.SensorNodes {
-		nodeMap[v] = NewNode(NEATSigmoidFunc)
+		nodeMap[v] = NewNode(SigmoidFunc)
 		n.Nodes = append(n.Nodes, nodeMap[v])
 	}
 
 	for _, v := range n.DNA.HiddenNodes {
-		nodeMap[v] = NewNode(NEATSigmoidFunc)
+		nodeMap[v] = NewNode(SigmoidFunc)
 		n.Nodes = append(n.Nodes, nodeMap[v])
 	}
 
 	for _, v := range n.DNA.OutputNodes {
-		nodeMap[v] = NewNode(NEATSigmoidFunc)
+		nodeMap[v] = NewNode(SigmoidFunc)
 		n.Nodes = append(n.Nodes, nodeMap[v])
 	}
 

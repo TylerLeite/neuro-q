@@ -2,9 +2,9 @@ package cppn
 
 import (
 	"math"
-)
 
-type Func func(float64) float64
+	"github.com/TylerLeite/neuro-q/neat"
+)
 
 var seed int64 = 0
 
@@ -17,7 +17,7 @@ func Seed(s int64) {
 	seed = s
 }
 
-func RandomFunc() (Func, string) {
+func RandomFunc() (neat.ActivationFunction, string) {
 	const totalWeights = 11
 
 	p := randi() % totalWeights
@@ -34,7 +34,7 @@ func RandomFunc() (Func, string) {
 	} else if p <= 5 {
 		return SigmoidFunc, "Sigmoid"
 	} else if p <= 10 {
-		return SigmoidFunc, "NEAT Sigmoid"
+		return neat.SigmoidFunc, "NEAT Sigmoid"
 	} else if p <= 6 {
 		return BipolarSigmoidFunc, "Bipolar sigmoid"
 	} else if p <= 7 {
@@ -70,10 +70,6 @@ func GaussianFunc(x float64) float64 {
 
 func SigmoidFunc(x float64) float64 {
 	return 1.0 / (1.0 + math.Exp(-x))
-}
-
-func NEATSigmoidFunc(x float64) float64 {
-	return 1.0 / (1.0 + math.Exp(-4.9*x))
 }
 
 func BipolarSigmoidFunc(x float64) float64 {

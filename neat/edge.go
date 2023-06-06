@@ -1,4 +1,4 @@
-package cppn
+package neat
 
 type Edge struct {
 	In      *Node
