@@ -11,19 +11,22 @@ import (
 // NOTE: current idea of a population fits more closely to a species, actually
 
 // Used for sorting by fitness
-type SortableOrganisms []Organism
+type SortableOrganisms struct {
+	organisms []Organism
+	ff        FitnessFunction
+}
 
-func (organisms SortableOrganisms) Len() int {
-	return len(organisms)
+func (o SortableOrganisms) Len() int {
+	return len(o.organisms)
 }
 
 // Want to sort in descending order, so less + greater are swapped
-func (organisms SortableOrganisms) Less(i, j int) bool {
-	return organisms[i].Fitness() > organisms[j].Fitness()
+func (o SortableOrganisms) Less(i, j int) bool {
+	return o.ff(o.organisms[i]) > o.ff(o.organisms[j])
 }
 
-func (organisms SortableOrganisms) Swap(i, j int) {
-	organisms[i], organisms[j] = organisms[j], organisms[i]
+func (o SortableOrganisms) Swap(i, j int) {
+	o.organisms[i], o.organisms[j] = o.organisms[j], o.organisms[i]
 }
 
 type Species struct {
@@ -63,10 +66,10 @@ func (s *Species) Copy() *Species {
 }
 
 // Get the member of this species with the highest fitness
-func (s *Species) GetChampion() Organism {
-	var champion Organism
+func (s *Species) Champion() Organism {
+	champion := s.Members[0]
 	for _, v := range s.Members {
-		if v.Fitness() > champion.Fitness() {
+		if s.Population.FitnessOf(v) > s.Population.FitnessOf(champion) {
 			champion = v
 		}
 	}
@@ -75,8 +78,18 @@ func (s *Species) GetChampion() Organism {
 }
 
 // Get a random member of this species
-func (s *Species) GetRandomOrganism() Organism {
+func (s *Species) RandomOrganism() Organism {
 	return s.Members[rand.Intn(len(s.Members)-1)]
+}
+
+func (s *Species) AverageFitness() float64 {
+	totalFitness := float64(0)
+
+	for _, v := range s.Members {
+		totalFitness += s.Population.FitnessOf(v)
+	}
+
+	return totalFitness / float64(len(s.Members))
 }
 
 // Local search
@@ -84,12 +97,12 @@ func (s *Species) LocalSearch() *Species {
 	newSpecies := s.Copy()
 
 	for i, organism := range s.Members {
-		currentFitness := organism.Fitness()
+		currentFitness := s.Population.FitnessOf(organism)
 		currentOrganism := organism
 		for j := 0; j < s.Population.LocalSearchGenerations; j += 1 {
 			neighbor := organism.RandomNeighbor()
-			neighborFitness := neighbor.Fitness()
-			if neighbor.Fitness() > currentFitness {
+			neighborFitness := s.Population.FitnessOf(neighbor)
+			if neighborFitness > currentFitness {
 				currentOrganism = neighbor
 				currentFitness = neighborFitness
 			}
@@ -107,7 +120,11 @@ func (s *Species) Selection() *Species {
 	newSpecies := s.Copy()
 
 	// Sort by fitness
-	sort.Sort(SortableOrganisms(newSpecies.Members))
+	so := SortableOrganisms{
+		organisms: newSpecies.Members,
+		ff:        s.Population.FitnessOf,
+	}
+	sort.Sort(so)
 
 	// Cull the least fit organisms
 	// TODO: also cull some randomly following a power law
@@ -134,9 +151,7 @@ func (s *Species) Recombination() *Species {
 		}
 
 		// Baby make
-		childGeneticCode := newSpecies.Members[r1].GeneticCode().Crossover([]GeneticCode{newSpecies.Members[r2].GeneticCode()})
-		child := newSpecies.Members[r1].Copy()
-		child.LoadGeneticCode(childGeneticCode)
+		child := newSpecies.Members[r1].Crossover([]Organism{newSpecies.Members[r2]})
 		children[i] = child
 	}
 
@@ -146,7 +161,7 @@ func (s *Species) Recombination() *Species {
 
 // May want to check stagnation, so each species keeps a history of their max fitness
 func (s *Species) UpdateFitnessHistory() {
-	s.FitnessHistory = append(s.FitnessHistory, s.GetChampion().Fitness())
+	s.FitnessHistory = append(s.FitnessHistory, s.Population.FitnessOf(s.Champion()))
 }
 
 // Check convergeance of a species by measuring its entropy

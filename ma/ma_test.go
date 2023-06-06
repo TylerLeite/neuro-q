@@ -45,7 +45,7 @@ func (e EvolvingString) ListMutations() map[string]MutationType {
 	return out
 }
 
-func (e EvolvingString) Mutate(mutationType MutationType) GeneticCode {
+func (e EvolvingString) Mutate(mutationType MutationType, args interface{}) GeneticCode {
 	var s string
 
 	switch mutationType {
@@ -71,16 +71,9 @@ func (e EvolvingString) Mutate(mutationType MutationType) GeneticCode {
 	return neighbor
 }
 
-func (e EvolvingString) Crossover(others []GeneticCode) GeneticCode {
-	// In this case, only look at the first element of others
-	other := others[0].(EvolvingString)
-
-	// Take some from the start of mom, some from the end of dad, mash em together
-	cutFromEnd := rand.Intn(len(e))
-	cutFromStart := rand.Intn(len(other))
-
-	child := GeneticCode(e[cutFromEnd:] + other[:cutFromStart])
-	return child
+// Want all strings to be in the same species -> always return 0 distance
+func (e EvolvingString) DistanceFrom(gc GeneticCode, c1, c2, c3 float64) float64 {
+	return 0
 }
 
 func (e EvolvingString) ToString() string {
@@ -96,7 +89,7 @@ type StringOrganism struct {
 
 func (s *StringOrganism) RandomNeighbor() Organism {
 	mutationType := MutationType(rand.Intn(3))
-	mutatedGenome := s.Genome.Mutate(mutationType)
+	mutatedGenome := s.Genome.Mutate(mutationType, nil)
 	neighbor := &StringOrganism{
 		Genome: mutatedGenome.(EvolvingString),
 	}
@@ -111,6 +104,18 @@ func (s *StringOrganism) Copy() Organism {
 	}
 
 	return Organism(newOrganism)
+}
+
+func (s StringOrganism) Crossover(others []Organism) Organism {
+	// In this case, only look at the first element of others
+	other := others[0].(*StringOrganism)
+
+	// Take some from the start of mom, some from the end of dad, mash em together
+	cutFromEnd := rand.Intn(len(s.Genome))
+	cutFromStart := rand.Intn(len(other.Genome))
+
+	child := GeneticCode(s.Genome[cutFromEnd:] + other.Genome[:cutFromStart])
+	return s.NewFromGeneticCode(child)
 }
 
 func (s *StringOrganism) NewFromGeneticCode(g GeneticCode) Organism {
@@ -137,7 +142,8 @@ func (s *StringOrganism) IsCompiled() bool {
 	return s.compiled
 }
 
-func (s StringOrganism) Fitness() float64 {
+func StringOrganismFitness(o Organism) float64 {
+	s := o.(*StringOrganism)
 	var fitness float64
 
 	dna := s.GeneticCode().ToString()
@@ -179,8 +185,7 @@ func TestEvolution(t *testing.T) {
 
 	seed := Organism(organism)
 
-	p1 := NewPopulation(100)
-	p1.Seed = seed
+	p1 := NewPopulation(100, seed, StringOrganismFitness)
 	p1.CullingPercent = 0.5
 	p1.RecombinationPercent = 1
 	p1.MinimumEntropy = 0.35
@@ -209,22 +214,14 @@ func TestEvolution(t *testing.T) {
 		p3 := p2.Stabilization()
 
 		p1 = p3
-		// if p1.HasConverged() {
-		// 	break
-		// }
+
+		// TODO: test convergeance + stagnation checks
 	}
 
-	var averageFitness float64 = 0
-	maxFitness := p1.Species[0].Members[0].Fitness()
-	maxJ := 0
-	for j, v := range p1.Species[0].Members {
-		f := v.Fitness()
-		averageFitness += f
-		if f > maxFitness {
-			maxFitness = f
-			maxJ = j
-		}
-	}
+	averageFitness := p1.Species[0].AverageFitness()
+	champion := p1.Species[0].Champion().(*StringOrganism)
+	championGenome := champion.Genome.ToString()
+	championFitness := p1.FitnessOf(Organism(champion))
 
-	fmt.Println(p1.Species[0].Members[maxJ], maxFitness, "(", averageFitness/float64(len(p1.Species[0].Members)), ")")
+	fmt.Println(championGenome, championFitness, "(", averageFitness/float64(len(p1.Species[0].Members)), ")")
 }
