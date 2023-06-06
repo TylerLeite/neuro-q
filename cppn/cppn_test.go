@@ -199,3 +199,29 @@ func TestGeneration(t *testing.T) {
 	f, _ := os.Create("_generated.png")
 	png.Encode(f, img)
 }
+
+func TestEvolution(t *testing.T) {
+	// // firstGenerationMutations := make(map[string]uint)
+
+	// // Create seed
+	// // TODO: include seed file in population, read it here
+	// seedGenome := Genome{}
+	// seedGenome.SensorNodes = make([]uint, inNodes)
+	// seedGenome.OutputNodes = make([]uint, outNodes)
+
+	// // TODO: NewOrganism() in cppn
+	// var seed ma.Organism = nil
+	// seed.LoadGeneticCode(&seedGenome)
+
+	// population := ma.NewPopulation(size, seed)
+	// species := ma.NewSpecies(population)
+	// species.Members = make([]ma.Organism, size)
+
+	// for i := 0; i < size; i += 1 {
+	// 	genome := seedGenome.Randomize()
+	// 	organism := seed.NewFromGeneticCode(genome)
+	// 	species.Members[i] = organism
+	// }
+
+	// return population.SeparateIntoSpecies()
+}

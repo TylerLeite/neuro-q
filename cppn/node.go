@@ -45,12 +45,12 @@ func (n *Node) SetDefaultValue(m float64) *Node {
 	return n
 }
 
-func (n *Node) AddChild(c *Node) *Node {
+func (n *Node) AddChild(c *Node) *Edge {
 	e := NewEdge(n, c)
 
 	n.Out = append(n.Out, e)
 	c.In = append(c.In, e)
-	return c
+	return e
 }
 
 func (n *Node) CalculateValue() float64 {
