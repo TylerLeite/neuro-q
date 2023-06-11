@@ -54,9 +54,22 @@ func TestImage(t *testing.T) {
 			xIn.SetDefaultValue(x / w)
 			yIn.SetDefaultValue(y / h)
 
-			r := 255 * rOut.CalculateValue()
-			g := 255 * gOut.CalculateValue()
-			b := 255 * bOut.CalculateValue()
+			// resChan := make(chan float64)
+			// go rOut.CalculateValue(resChan)
+			// r := <-resChan
+			// r *= 255
+
+			// go gOut.CalculateValue(resChan)
+			// g := <-resChan
+			// g *= 255
+
+			// go bOut.CalculateValue(resChan)
+			// b := <-resChan
+			// b *= 255
+
+			r := 255 * rOut.CalculateValue(nil)
+			g := 255 * gOut.CalculateValue(nil)
+			b := 255 * bOut.CalculateValue(nil)
 
 			rOut.Reset()
 			gOut.Reset()
@@ -69,6 +82,16 @@ func TestImage(t *testing.T) {
 	f, _ := os.Create("_random.png")
 	png.Encode(f, img)
 }
+
+// Nodes []*Node
+// Edges []*Edge
+
+// DNA        *Genome
+// isCompiled bool
+
+// // Because fitness function is defined on populations and crossover is defined on organisms, need a reference here
+// // TODO: maybe add crossover as a function member of population like fitness is?
+// Population *ma.Population
 
 func TestGeneration(t *testing.T) {
 	xIn := neat.NewNode(IdentityFunc)
@@ -186,9 +209,22 @@ func TestGeneration(t *testing.T) {
 			xIn.SetDefaultValue(x / w)
 			yIn.SetDefaultValue(y / h)
 
-			r := 255 * rOut.CalculateValue()
-			g := 255 * gOut.CalculateValue()
-			b := 255 * bOut.CalculateValue()
+			// resChan := make(chan float64)
+			// go rOut.CalculateValue(resChan)
+			// r := <-resChan
+			// r *= 255
+
+			// go gOut.CalculateValue(resChan)
+			// g := <-resChan
+			// g *= 255
+
+			// go bOut.CalculateValue(resChan)
+			// b := <-resChan
+			// b *= 255
+
+			r := 255 * rOut.CalculateValue(nil)
+			g := 255 * gOut.CalculateValue(nil)
+			b := 255 * bOut.CalculateValue(nil)
 
 			rOut.Reset()
 			gOut.Reset()

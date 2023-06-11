@@ -3,6 +3,7 @@ package ma
 import (
 	"bytes"
 	"compress/flate"
+	"fmt"
 	"math"
 	"math/rand"
 	"sort"
@@ -49,6 +50,16 @@ func NewSpecies(p *Population) *Species {
 	return &s
 }
 
+func (s *Species) ToString() string {
+	out := ""
+	champ := s.Champion()
+	for i, o := range s.Members {
+		distance := o.GeneticCode().DistanceFrom(champ.GeneticCode(), s.Population.C1, s.Population.C2, s.Population.C3)
+		out += fmt.Sprintf("%d [%.2g]: %s\n", i, distance, o.GeneticCode().ToString())
+	}
+	return out
+}
+
 func (s *Species) Copy() *Species {
 	newSpecies := Species{
 		Population:     s.Population,
@@ -79,6 +90,9 @@ func (s *Species) Champion() Organism {
 
 // Get a random member of this species
 func (s *Species) RandomOrganism() Organism {
+	if len(s.Members) == 1 {
+		return s.Members[0]
+	}
 	return s.Members[rand.Intn(len(s.Members)-1)]
 }
 
@@ -93,70 +107,85 @@ func (s *Species) AverageFitness() float64 {
 }
 
 // Local search
-func (s *Species) LocalSearch() *Species {
-	newSpecies := s.Copy()
-
+func (s *Species) LocalSearch() {
 	for i, organism := range s.Members {
 		currentFitness := s.Population.FitnessOf(organism)
-		currentOrganism := organism
+		mostFitNeighbor := organism
+
 		for j := 0; j < s.Population.LocalSearchGenerations; j += 1 {
 			neighbor := organism.RandomNeighbor()
 			neighborFitness := s.Population.FitnessOf(neighbor)
 			if neighborFitness > currentFitness {
-				currentOrganism = neighbor
+				mostFitNeighbor = neighbor
 				currentFitness = neighborFitness
 			}
 		}
 
 		// Lamarckian learning: the new organism replaces the old one
-		newSpecies.Members[i] = currentOrganism
+		s.Members[i] = mostFitNeighbor
 	}
-
-	return newSpecies
 }
 
 // selection
-func (s *Species) Selection() *Species {
-	newSpecies := s.Copy()
+func (s *Species) Selection() {
+	if len(s.Members) == 1 {
+		return
+	}
 
 	// Sort by fitness
 	so := SortableOrganisms{
-		organisms: newSpecies.Members,
+		organisms: s.Members,
 		ff:        s.Population.FitnessOf,
 	}
 	sort.Sort(so)
 
 	// Cull the least fit organisms
-	// TODO: also cull some randomly following a power law
-	numberToCull := int(math.Floor(newSpecies.Population.CullingPercent * float64(len(newSpecies.Members))))
-	newSpecies.Members = newSpecies.Members[:len(newSpecies.Members)-numberToCull]
-
-	return newSpecies
+	// TODO: distribute cullling randomly following a power law
+	// idea: nondeterministic # culled -> recombine + add random to meet total population, following config %s
+	numberToCull := int(math.Round(s.Population.CullingPercent * float64(len(s.Members))))
+	s.Members = s.Members[:len(s.Members)-numberToCull]
 }
 
 // Recombination (mating)
-func (s *Species) Recombination() *Species {
-	newSpecies := s.Copy()
-
+func (s *Species) Recombination() {
 	// Store children in a new slice during recombination so they aren't chosen as parents
-	numberToRecombine := int(math.Floor(newSpecies.Population.RecombinationPercent * float64(len(newSpecies.Members))))
+	thisSpeciesPopulationPercent := float64(len(s.Members)) / float64(s.Population.CountMembers())
+	speciesTargetSize := int(math.Round(float64(s.Population.Size) * thisSpeciesPopulationPercent))
+	numberToRecombine := int(math.Round(float64(speciesTargetSize-len(s.Members)) * s.Population.RecombinationPercent))
+	numberToMutate := speciesTargetSize - numberToRecombine - len(s.Members)
 	children := make([]Organism, numberToRecombine)
+	clones := make([]Organism, numberToMutate)
 
 	for i := 0; i < numberToRecombine; i += 1 {
-		// Select two random parents
-		r1 := rand.Intn(len(newSpecies.Members))
-		r2 := r1
-		for r2 == r1 {
-			r2 = rand.Intn(len(newSpecies.Members))
+		var child Organism
+		r1 := rand.Intn(len(s.Members))
+
+		if len(s.Members) < 2 {
+			// Can't do crossover, so reproduce asexually
+			child = s.Members[r1].RandomNeighbor()
+		} else {
+			// Select another parent at random
+			// TODO: sexual selection?
+			r2 := r1
+			for r2 == r1 {
+				r2 = rand.Intn(len(s.Members))
+			}
+
+			// Baby make
+			child = s.Members[r1].Crossover([]Organism{s.Members[r2]})
 		}
 
-		// Baby make
-		child := newSpecies.Members[r1].Crossover([]Organism{newSpecies.Members[r2]})
 		children[i] = child
 	}
 
-	newSpecies.Members = append(newSpecies.Members, children...)
-	return newSpecies
+	for i := 0; i < numberToMutate; i += 1 {
+		r := rand.Intn(len(s.Members))
+		clone := s.Members[r].RandomNeighbor()
+		clones[i] = clone
+	}
+
+	s.Members = append(s.Members, children...)
+	s.Members = append(s.Members, clones...)
 }
 
 // May want to check stagnation, so each species keeps a history of their max fitness

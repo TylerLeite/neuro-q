@@ -1,10 +1,14 @@
 package neat
 
+import "fmt"
+
 type Edge struct {
 	In      *Node
 	Out     *Node
 	Weight  float64
 	Enabled bool
+
+	Label string
 }
 
 func NewEdge(n, c *Node) *Edge {
@@ -16,8 +20,18 @@ func NewEdge(n, c *Node) *Edge {
 	return e
 }
 
-func (e *Edge) CalculateValue() float64 {
-	return e.Weight * e.In.CalculateValue()
+func (e *Edge) ToString() string {
+	return fmt.Sprintf("{%s %s @ %.2g}", e.In.Label, e.Out.Label, e.Weight)
+}
+
+func (e *Edge) CalculateValue(sumChan chan float64) float64 {
+	chainChan := make(chan float64)
+	go e.In.CalculateValue(chainChan)
+	value := e.Weight * <-chainChan
+	if sumChan != nil {
+		sumChan <- value
+	}
+	return value
 }
 
 func (e *Edge) Reset() {

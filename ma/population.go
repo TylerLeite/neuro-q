@@ -1,6 +1,9 @@
 package ma
 
-import "math"
+import (
+	"math"
+	"sort"
+)
 
 type FitnessFunction func(Organism) float64
 
@@ -19,6 +22,11 @@ type Population struct {
 	LocalSearchGenerations int
 	DropoffAge             int
 	DistanceThreshold      float64
+
+	// Constants for distance function
+	C1 float64
+	C2 float64
+	C3 float64
 }
 
 func NewPopulation(size int, seed Organism, fitnessFunction FitnessFunction) *Population {
@@ -35,31 +43,23 @@ func NewPopulation(size int, seed Organism, fitnessFunction FitnessFunction) *Po
 		LocalSearchGenerations: 16,
 		DropoffAge:             15,
 		DistanceThreshold:      math.MaxFloat64,
+		C1:                     1,
+		C2:                     1,
+		C3:                     0.4,
 	}
 
 	return &p
 }
 
 func (p *Population) Copy() *Population {
-	newPopulation := Population{
-		Species:   make([]*Species, len(p.Species)),
-		Size:      p.Size,
-		Seed:      p.Seed,
-		FitnessOf: p.FitnessOf,
+	newPopulation := p.CopyConfig()
 
-		CullingPercent:         p.CullingPercent,
-		RecombinationPercent:   p.RecombinationPercent,
-		MinimumEntropy:         p.MinimumEntropy,
-		LocalSearchGenerations: p.LocalSearchGenerations,
-		DropoffAge:             p.DropoffAge,
-		DistanceThreshold:      p.DistanceThreshold,
-	}
-
+	newPopulation.Species = make([]*Species, len(p.Species))
 	for i, v := range p.Species {
 		newPopulation.Species[i] = v.Copy()
 	}
 
-	return &newPopulation
+	return newPopulation
 }
 
 func (p *Population) CopyConfig() *Population {
@@ -76,6 +76,9 @@ func (p *Population) CopyConfig() *Population {
 		LocalSearchGenerations: p.LocalSearchGenerations,
 		DropoffAge:             p.DropoffAge,
 		DistanceThreshold:      p.DistanceThreshold,
+		C1:                     p.C1,
+		C2:                     p.C2,
+		C3:                     p.C3,
 	}
 
 	return &newPopulation
@@ -108,8 +111,7 @@ func (p *Population) Generate() {
 	p.Species[0] = NewSpecies(p)
 	for i := 0; i < p.Size; i += 1 {
 		newOrganism := p.Seed.Copy()
-		randomGenome := newOrganism.GeneticCode().Randomize()
-		newOrganism.LoadGeneticCode(randomGenome)
+		newOrganism.GeneticCode().Randomize()
 
 		p.Species[0].Members = append(p.Species[0].Members, newOrganism)
 	}
@@ -120,23 +122,27 @@ func (p *Population) SeparateIntoSpecies() *Population {
 	newPopulation := p.CopyConfig()
 
 	representatives := make([]Organism, len(p.Species))
-	newPopulation.Species = make([]*Species, len(p.Species))
+	for i, species := range p.Species {
+		if representatives[i] == nil {
+			// First pick a representative for the species if one doesn't exist
+			representatives[i] = species.RandomOrganism()
+		}
+	}
+
+	newPopulation.Species = make([]*Species, len(p.Species)) // Need new species to line up with matching old species
 
 	for _, currentIndividual := range p.Members() {
 		foundASpecies := false
 
-		for i := 0; i < len(p.Species); i += 1 {
-			species := p.Species[i]
-			if representatives[i] == nil {
-				// First pick a representative for the species if one doesn't exist
-				representatives[i] = species.RandomOrganism()
-			}
-
+		for i, representative := range representatives {
 			// Place this individual into the first species where it fits
 			// TODO: figure out actual values for these constants
-			// pop 150 -> c3 = 0.4, threshold = 3.0 | pop 1000 -> c3 = 3.0, threshold = 4.0
-			d := currentIndividual.GeneticCode().DistanceFrom(representatives[i].GeneticCode(), 1, 1, 0.4)
+			d := currentIndividual.GeneticCode().DistanceFrom(representative.GeneticCode(), p.C1, p.C2, p.C3)
 			if d < newPopulation.DistanceThreshold {
+				if newPopulation.Species[i] == nil {
+					newPopulation.Species[i] = NewSpecies(p)
+				}
+
 				newPopulation.Species[i].Members = append(newPopulation.Species[i].Members, currentIndividual.Copy())
 				foundASpecies = true
 				break
@@ -145,17 +151,56 @@ func (p *Population) SeparateIntoSpecies() *Population {
 
 		if !foundASpecies {
 			// Make a new species with this individual as the representative
-			newPopulation.Species = append(newPopulation.Species, NewSpecies(newPopulation))
-			newPopulation.Species[len(newPopulation.Species)-1].Members[0] = currentIndividual.Copy()
+			newSpecies := NewSpecies(newPopulation)
+			newSpecies.Members = append(newSpecies.Members, currentIndividual.Copy())
+			newPopulation.Species = append(newPopulation.Species, newSpecies)
+
+			// Also need a representative for this species
 			representatives = append(representatives, currentIndividual)
 		}
 	}
 
-	// TODO: Clean up empty species
+	// Clean up empty species
+	for i := len(newPopulation.Species) - 1; i >= 0; i -= 1 {
+		if newPopulation.Species[i] == nil {
+			newPopulation.Species = append(newPopulation.Species[:i], newPopulation.Species[i+1:]...)
+		}
+	}
+
 	return newPopulation
 }
 
+func (p *Population) SortSpecies() []*Species {
+	sortedCopy := make([]*Species, len(p.Species))
+	copy(sortedCopy, p.Species)
+
+	sortable := SortableSpecies(sortedCopy)
+	sort.Sort(sortable)
+
+	return []*Species(sortable)
+}
+
 // TODO: Make sure population is at its size. Either cull extra organisms or distribute new organisms among most fit species
-func (p *Population) Stabilization() *Population {
-	return p
+func (p *Population) Stabilization() {
+	//
+}
+
+////
+
+// Sorting shenanigans
+type SortableSpecies []*Species
+
+func (s SortableSpecies) Len() int {
+	return len(s)
+}
+
+// Want to sort in descending order, so less + greater are swapped
+func (s SortableSpecies) Less(i, j int) bool {
+	s1MaxFitness := s[i].Population.FitnessOf(s[i].Champion())
+	s2MaxFitness := s[j].Population.FitnessOf(s[j].Champion())
+	return s1MaxFitness > s2MaxFitness
+}
+
+func (s SortableSpecies) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
 }

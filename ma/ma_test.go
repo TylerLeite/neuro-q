@@ -12,15 +12,19 @@ var Alphabet = [26]string{
 }
 
 // Genetic Code
-type EvolvingString string
-
-func (e EvolvingString) Copy() GeneticCode {
-	copyStr := strings.Clone(string(e))
-	out := GeneticCode(EvolvingString(copyStr))
-	return out
+type EvolvingString struct {
+	Code string
 }
 
-func (e EvolvingString) Randomize() GeneticCode {
+func (e *EvolvingString) Copy() GeneticCode {
+	copyStr := strings.Clone(e.Code)
+	out := EvolvingString{
+		Code: copyStr,
+	}
+	return GeneticCode(&out)
+}
+
+func (e *EvolvingString) Randomize() {
 	out := Alphabet[rand.Intn(26)]
 	cont := 0
 	for cont < 7 {
@@ -28,7 +32,7 @@ func (e EvolvingString) Randomize() GeneticCode {
 		cont = rand.Intn(8)
 	}
 
-	return GeneticCode(EvolvingString(out))
+	e.Code = out
 }
 
 const (
@@ -37,7 +41,7 @@ const (
 	ChangeLetter
 )
 
-func (e EvolvingString) ListMutations() map[string]MutationType {
+func (e *EvolvingString) ListMutations() map[string]MutationType {
 	out := make(map[string]MutationType)
 	out["Add Letter"] = AddLetter
 	out["Remove Letter"] = RemoveLetter
@@ -45,53 +49,53 @@ func (e EvolvingString) ListMutations() map[string]MutationType {
 	return out
 }
 
-func (e EvolvingString) Mutate(mutationType MutationType, args interface{}) GeneticCode {
+func (e *EvolvingString) Mutate(mutationType MutationType, args interface{}) {
 	var s string
 
 	switch mutationType {
 	case 0:
 		// Add
-		position := rand.Intn(len(e) + 1)
+		position := rand.Intn(len(e.Code) + 1)
 		r := Alphabet[rand.Intn(26)]
-		s = string(e)[:position] + r + string(e)[position:]
+		s = e.Code[:position] + r + e.Code[position:]
 	case 1:
 		// Remove
-		position := rand.Intn(len(e))
-		s = string(e[:position] + e[position+1:])
+		position := rand.Intn(len(e.Code))
+		s = e.Code[:position] + e.Code[position+1:]
 	case 2:
 		// Chage
-		position := rand.Intn(len(e))
+		position := rand.Intn(len(e.Code))
 		r := Alphabet[rand.Intn(26)]
-		s = string(e)[:position] + r + string(e)[position+1:]
+		s = e.Code[:position] + r + e.Code[position+1:]
 	default:
-		return nil
+		//
 	}
 
-	neighbor := GeneticCode(EvolvingString(s))
-	return neighbor
+	e.Code = s
 }
 
 // Want all strings to be in the same species -> always return 0 distance
-func (e EvolvingString) DistanceFrom(gc GeneticCode, c1, c2, c3 float64) float64 {
+func (e *EvolvingString) DistanceFrom(gc GeneticCode, c1, c2, c3 float64) float64 {
 	return 0
 }
 
-func (e EvolvingString) ToString() string {
-	return string(e)
+func (e *EvolvingString) ToString() string {
+	return e.Code
 }
 
 // Organism
 
 type StringOrganism struct {
-	Genome   EvolvingString
+	Genome   *EvolvingString
 	compiled bool
 }
 
 func (s *StringOrganism) RandomNeighbor() Organism {
 	mutationType := MutationType(rand.Intn(3))
-	mutatedGenome := s.Genome.Mutate(mutationType, nil)
+	mutatedGenome := s.Genome.Copy()
+	mutatedGenome.Mutate(mutationType, nil)
 	neighbor := &StringOrganism{
-		Genome: mutatedGenome.(EvolvingString),
+		Genome: mutatedGenome.(*EvolvingString),
 	}
 
 	return Organism(neighbor)
@@ -99,7 +103,7 @@ func (s *StringOrganism) RandomNeighbor() Organism {
 
 func (s *StringOrganism) Copy() Organism {
 	newOrganism := &StringOrganism{
-		Genome:   s.Genome.Copy().(EvolvingString),
+		Genome:   s.Genome.Copy().(*EvolvingString),
 		compiled: s.IsCompiled(),
 	}
 
@@ -111,11 +115,15 @@ func (s StringOrganism) Crossover(others []Organism) Organism {
 	other := others[0].(*StringOrganism)
 
 	// Take some from the start of mom, some from the end of dad, mash em together
-	cutFromEnd := rand.Intn(len(s.Genome))
-	cutFromStart := rand.Intn(len(other.Genome))
+	cutFromEnd := rand.Intn(len(s.Genome.Code))
+	cutFromStart := rand.Intn(len(other.Genome.Code))
 
-	child := GeneticCode(s.Genome[cutFromEnd:] + other.Genome[:cutFromStart])
-	return s.NewFromGeneticCode(child)
+	child := s.Genome.Code[cutFromEnd:] + other.Genome.Code[:cutFromStart]
+
+	newGenome := &EvolvingString{
+		Code: child,
+	}
+	return s.NewFromGeneticCode(GeneticCode(newGenome))
 }
 
 func (s *StringOrganism) NewFromGeneticCode(g GeneticCode) Organism {
@@ -126,7 +134,7 @@ func (s *StringOrganism) NewFromGeneticCode(g GeneticCode) Organism {
 }
 
 func (s *StringOrganism) LoadGeneticCode(g GeneticCode) {
-	s.Genome = g.(EvolvingString)
+	s.Genome = g.(*EvolvingString)
 }
 
 func (s *StringOrganism) GeneticCode() GeneticCode {
@@ -173,14 +181,16 @@ func StringOrganismFitness(o Organism) float64 {
 }
 
 func (e EvolvingString) CodeString() string {
-	return string(e)
+	return e.Code
 }
 
 // TODO: Better tests (convergeance, each generation improving, etc.)
 func TestEvolution(t *testing.T) {
-	genome := EvolvingString("abcdef")
+	genome := EvolvingString{
+		Code: "abcdef",
+	}
 	organism := &StringOrganism{
-		Genome: genome,
+		Genome: &genome,
 	}
 
 	seed := Organism(organism)
@@ -194,26 +204,14 @@ func TestEvolution(t *testing.T) {
 	p1.Generate()
 
 	for i := 0; i < 100; i += 1 {
-		s1 := make([]*Species, 0)
-		for _, species := range p1.Species {
-			s1 = append(s1, species.LocalSearch())
-		}
-
-		s2 := make([]*Species, 0)
-		for _, species := range s1 {
-			s2 = append(s2, species.Selection())
-		}
-
-		s3 := make([]*Species, 0)
-		for _, species := range s2 {
-			s3 = append(s3, species.Recombination())
-		}
-
 		p2 := p1.Copy()
-		p2.Species = s3
-		p3 := p2.Stabilization()
+		for _, species := range p2.Species {
+			species.LocalSearch()
+			species.Selection()
+			species.Recombination()
+		}
 
-		p1 = p3
+		p1 = p2
 
 		// TODO: test convergeance + stagnation checks
 	}

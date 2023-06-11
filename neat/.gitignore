@@ -1,1 +1,3 @@
 *.txt
+*.bmp
+!font.bmp

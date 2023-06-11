@@ -1,6 +1,7 @@
 package neat
 
 import (
+	"fmt"
 	"math"
 	"sync"
 )
@@ -21,6 +22,8 @@ const (
 type Node struct {
 	In  []*Edge
 	Out []*Edge
+
+	Label string
 
 	state ActivationState
 	lock  *sync.Cond
@@ -45,6 +48,20 @@ func NewNode(activation ActivationFunction) *Node {
 	return n
 }
 
+func (n *Node) ToString() string {
+	inRepr := ""
+	for _, edge := range n.In {
+		inRepr += edge.ToString() + ", "
+	}
+
+	outRepr := ""
+	for _, edge := range n.Out {
+		outRepr += edge.ToString() + ", "
+	}
+
+	return fmt.Sprintf("%s:\nin: %s\nout: %s\n", n.Label, inRepr, outRepr)
+}
+
 func (n *Node) SetDefaultValue(m float64) *Node {
 	n.value = m
 	return n
@@ -58,7 +75,8 @@ func (n *Node) AddChild(c *Node) *Edge {
 	return e
 }
 
-func (n *Node) CalculateValue() float64 {
+// TODO: recurrent CalculateValue()
+func (n *Node) CalculateValue(resultChan chan float64) float64 {
 	for n.state == InActivation {
 		n.lock.Wait()
 	}
@@ -70,13 +88,19 @@ func (n *Node) CalculateValue() float64 {
 		if len(n.In) > 0 {
 			// this is not an input node
 
-			sum := 0.0
 			// need to sum all parent inputs
+			sumChan := make(chan float64)
 			for _, p := range n.In {
 				if p == nil {
 					continue
 				}
-				sum += p.CalculateValue() // make sure u send input upstream
+				go p.CalculateValue(sumChan) // make sure u send input upstream
+			}
+
+			sum := 0.0
+			for range n.In {
+				res := <-sumChan
+				sum += res
 			}
 
 			// then run that through the activation function
@@ -88,7 +112,9 @@ func (n *Node) CalculateValue() float64 {
 		n.lock.Broadcast()
 	}
 
-	//fmt.Println("Activating: " + n.FnDesc)
+	if resultChan != nil {
+		resultChan <- n.value
+	}
 	return n.value
 }
 

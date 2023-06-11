@@ -1,6 +1,7 @@
 package neat
 
 import (
+	"fmt"
 	_ "fmt"
 	"math/rand"
 
@@ -50,6 +51,14 @@ func NewNetwork(dna *Genome, p *ma.Population) *Network {
 	return &n
 }
 
+func (n *Network) ToString() string {
+	nodesRepr := ""
+	for _, node := range n.Nodes {
+		nodesRepr += node.ToString()
+	}
+	return nodesRepr
+}
+
 func (n *Network) Copy() ma.Organism {
 	copyDna := n.DNA.Copy().(*Genome)
 	out := NewNetwork(copyDna, n.Population)
@@ -57,11 +66,31 @@ func (n *Network) Copy() ma.Organism {
 }
 
 func (n *Network) RandomNeighbor() ma.Organism {
-	return nil
+	neighbor := n.Copy()
+
+	mutations := n.DNA.ListMutations()
+	randomMutationI := rand.Intn(len(mutations))
+
+	// TODO: get from config
+	args := MutateArgs{
+		FeedForward: true,
+	}
+
+	for _, v := range mutations {
+		randomMutationI -= 1
+
+		if randomMutationI == 0 {
+			neighbor.GeneticCode().Mutate(v, args)
+		}
+	}
+
+	return neighbor
 }
 
-func (n *Network) NewFromGeneticCode(ma.GeneticCode) ma.Organism {
-	return nil
+func (n *Network) NewFromGeneticCode(geneticCode ma.GeneticCode) ma.Organism {
+	dna := geneticCode.(*Genome)
+	out := NewNetwork(dna, n.Population)
+	return ma.Organism(out)
 }
 
 func (n *Network) Crossover(others []ma.Organism) ma.Organism {
@@ -77,6 +106,10 @@ func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 	g1 := n.GeneticCode().(*Genome)
 	g2 := n2.GeneticCode().(*Genome)
 
+	// TODO: keep these sorted so this doesn't need to be run more than once per genome
+	g1.SortConnections()
+	g2.SortConnections()
+
 	g := Genome{
 		Connections: make([]*EdgeGene, 0),
 		SensorNodes: make([]uint, 0),
@@ -86,22 +119,25 @@ func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 
 	// Line up genes by innovation number
 	var i1, i2 int
+	// Need to sort connections slices by innovation number
 	for {
 		// Check if we are in excess node territory
 		if i1 >= len(g1.Connections) {
-			if i2 >= len(g2.Connections) {
-				break
-			} else if n == moreFitParent {
-				// Inherit excess genes from the more fit parent
+			// Inherit excess genes from the longer genome if it is the more fit parent
+			if n2 == moreFitParent {
+				// This loop will be empty if i2 >= len(g2.Connection)
+				for ; i2 < len(g2.Connections); i2 += 1 {
+					g.Connections = append(g.Connections, g2.Connections[i2])
+				}
+			}
+			break
+		} else if i2 >= len(g2.Connections) {
+			if n == moreFitParent {
 				for ; i1 < len(g1.Connections); i1 += 1 {
 					g.Connections = append(g.Connections, g1.Connections[i1])
 				}
 			}
-		} else if i2 >= len(g2.Connections) && n2 == moreFitParent {
-			// Inherit excess genes from the more fit parent
-			for ; i2 < len(g2.Connections); i2 += 1 {
-				g.Connections = append(g.Connections, g2.Connections[i2])
-			}
+			break
 		}
 
 		if g1.Connections[i1].InnovationNumber == g2.Connections[i2].InnovationNumber {
@@ -151,32 +187,44 @@ func (n *Network) LoadGeneticCode(dna ma.GeneticCode) {
 
 // TODO: check for errors e.g. loops in feed-forward networks, connections between nonexistant nodes, etc.
 func (n *Network) Compile() error {
-	// Assume dna has populated node slices. This should always be the case
+	// No need to recompile, genome should never change
+	if n.isCompiled {
+		return nil
+	}
+
+	// TODO: figure out where this isn't being called but should be (maybe crossover?)
+	n.DNA.PopulateNodeSlices()
 
 	// Create all nodes
 	nNodes := len(n.DNA.SensorNodes) + len(n.DNA.HiddenNodes) + len(n.DNA.OutputNodes)
+	n.Nodes = make([]*Node, nNodes)
 	nodeMap := make([]*Node, nNodes)
 
 	// TODO: support for other activation functions
 	// Also there is probably a slightly cleaner way of doing this than 3 nearly identical loops but oh well
 	for _, v := range n.DNA.SensorNodes {
 		nodeMap[v] = NewNode(SigmoidFunc)
-		n.Nodes = append(n.Nodes, nodeMap[v])
+		nodeMap[v].Label = fmt.Sprintf("%d", v)
+		n.Nodes[v] = nodeMap[v]
 	}
 
 	for _, v := range n.DNA.HiddenNodes {
 		nodeMap[v] = NewNode(SigmoidFunc)
-		n.Nodes = append(n.Nodes, nodeMap[v])
+		nodeMap[v].Label = fmt.Sprintf("%d", v)
+		n.Nodes[v] = nodeMap[v]
 	}
 
 	for _, v := range n.DNA.OutputNodes {
 		nodeMap[v] = NewNode(SigmoidFunc)
-		n.Nodes = append(n.Nodes, nodeMap[v])
+		nodeMap[v].Label = fmt.Sprintf("%d", v)
+		n.Nodes[v] = nodeMap[v]
 	}
 
 	// Create all edges
 	for _, v := range n.DNA.Connections {
 		newEdge := nodeMap[v.InNode].AddChild(nodeMap[v.OutNode])
+		newEdge.Label = fmt.Sprintf("%d", v.InnovationNumber)
+		newEdge.Weight = v.Weight
 		n.Edges = append(n.Edges, newEdge)
 	}
 

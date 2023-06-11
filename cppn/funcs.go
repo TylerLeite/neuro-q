@@ -18,9 +18,9 @@ func Seed(s int64) {
 }
 
 func RandomFunc() (neat.ActivationFunction, string) {
-	const totalWeights = 11
+	const totalFunctions = 12
 
-	p := randi() % totalWeights
+	p := randi() % totalFunctions
 	if p <= 0 {
 		return SinFunc, "Sine"
 	} else if p <= 1 {
