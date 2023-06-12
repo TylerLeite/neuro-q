@@ -46,10 +46,11 @@ func NeatFitness(o ma.Organism) float64 {
 
 	out := n.Nodes[n.DNA.OutputNodes[0]]
 
-	fitness := float64(8)
+	fitness := float64(0)
 
 	for x := 0; x < 2; x += 1 {
 		for y := 0; y < 2; y += 1 {
+			out.Reset()
 			bias.SetDefaultValue(float64(1))
 			inX.SetDefaultValue(float64(x))
 			inY.SetDefaultValue(float64(y))
@@ -59,12 +60,15 @@ func NeatFitness(o ma.Organism) float64 {
 			inY.ForwardPropogate()
 
 			result := out.Value()
-			fitness -= math.Abs(result - float64(xor(x, y)))
+			fmt.Println(result)
+			target := float64(xor(x, y))
 
-			out.Reset()
+			fitness += math.Abs(result - target)
 		}
 	}
 
+	// Take reciprocal of square, want maximum value at minimum difference between result + target
+	fitness = 16 / (1 + fitness*fitness)
 	return fitness
 }
 
@@ -86,10 +90,16 @@ func TestDraw(t *testing.T) {
 		NewEdgeGene(7, 8, 0, NoMutation),
 		NewEdgeGene(7, 9, 0, NoMutation),
 
+		NewEdgeGene(8, 6, 0, NoMutation),
+
 		NewEdgeGene(8, 3, 0, NoMutation),
 		NewEdgeGene(8, 4, 0, NoMutation),
 		NewEdgeGene(9, 4, 0, NoMutation),
 		NewEdgeGene(9, 5, 0, NoMutation),
+	}
+
+	for i, e := range seedGenome.Connections {
+		e.Weight = float64(i)/6 - 1
 	}
 
 	network := NewNetwork(seedGenome, nil)
@@ -148,8 +158,8 @@ func TestEvolution(t *testing.T) {
 			champion := species.Champion()
 
 			championNetwork := champion.(*Network)
-			championNetwork.Draw(fmt.Sprintf("drawn/%d_%d.bmp", i, j))
-			fmt.Printf("species #%d/%d: f=%.2g\n%s\n", j+1, len(p2.Species), p2.FitnessOf(champion), champion.(*Network).ToString())
+			// championNetwork.Draw(fmt.Sprintf("drawn/%d_%d.bmp", i, j))
+			fmt.Printf("species #%d/%d: f=%.2g\n%s\n", j+1, len(p2.Species), p2.FitnessOf(champion), championNetwork.ToString())
 		}
 
 		fmt.Println()

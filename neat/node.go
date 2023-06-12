@@ -8,6 +8,10 @@ import (
 type ActivationState int8
 type ActivationFunction func(float64) float64
 
+func IdentityFunc(x float64) float64 {
+	return x
+}
+
 func SigmoidFunc(x float64) float64 {
 	return 1.0 / (1.0 + math.Exp(-4.9*x))
 }

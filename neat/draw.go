@@ -122,55 +122,88 @@ func drawEdge(x0, y0, x1, y1 int, label string, weight float64, font image.Image
 	}
 }
 
-func distanceToInput(n *Node, visited map[*Node]int) int {
-	// Breadth-first search from each node
-	if len(n.In) == 0 {
-		visited[n] = 1
-		return 1
+func (n *Network) SeparateIntoLayers() [][]*Node {
+	layers := make([][]*Node, 0)
+	visited := make(map[*Node]bool)
+
+	for _, node := range n.Nodes {
+		visited[node] = false
 	}
 
-	if cachedDepth, ok := visited[n]; ok {
-		return cachedDepth
+	inputLayer := make([]*Node, 0)
+	for _, nodeId := range n.DNA.SensorNodes {
+		sensorNode := n.Nodes[nodeId]
+		visited[sensorNode] = true
+		inputLayer = append(inputLayer, sensorNode)
 	}
+	layers = append(layers, inputLayer)
 
-	maxDepth := 0
-	for _, v := range n.In {
-		depth := 1 + distanceToInput(v.In, visited)
+	index := 0
+	for {
+		thisLayer := layers[index]
+		nextLayer := make([]*Node, 0)
 
-		if depth > maxDepth {
-			maxDepth = depth
+		for _, node := range thisLayer {
+			for _, outEdge := range node.Out {
+				child := outEdge.Out
+				if visited[child] {
+					continue
+				} else {
+					visited[child] = true
+					nextLayer = append(nextLayer, child)
+				}
+			}
+		}
+
+		if len(nextLayer) == 0 {
+			break
+		} else {
+			layers = append(layers, nextLayer)
+			index += 1
 		}
 	}
 
-	visited[n] = maxDepth
-	return maxDepth
+	return layers
 }
 
 func (n *Network) Draw(fName string) error {
-	_visited := make(map[*Node]int)
+	layers := n.SeparateIntoLayers()
+	maxDepth := len(layers)
 
-	// Figure out what size the image needs to be
-	maxDepth := 0
-	for _, nodeId := range n.DNA.OutputNodes {
-		node := n.Nodes[nodeId]
-		distance := distanceToInput(node, _visited)
-		if maxDepth < distance {
-			maxDepth = distance
+	// Oddly enough, width is how tall the graph is at a given column
+	maxWidth := 0
+	for _, layer := range layers {
+		widthAtLayer := len(layer)
+		if widthAtLayer > maxWidth {
+			maxWidth = widthAtLayer
 		}
 	}
 
-	// Oddly enough, width is how tall the graph is at a given column
-	widthAtDepth := make(map[int]int)
-	maxWidth := 0
-	for _, v := range _visited {
-		if _, ok := widthAtDepth[v]; !ok {
-			widthAtDepth[v] = 0
-		}
+	// Nodes are 15x9, padding 14x5
+	canvasWidth := 2 + 15*maxDepth + 14*(maxDepth-1)
+	canvasHeight := 2 + 9*maxWidth + 5*(maxWidth-1)
+	canvas := image.NewRGBA(image.Rect(0, 0, canvasWidth, canvasHeight))
 
-		widthAtDepth[v] += 1
-		if widthAtDepth[v] > maxWidth {
-			maxWidth = widthAtDepth[v]
+	// Calculate y positions of each node
+	rowLocation := make(map[*Node]int)
+	columnLocation := make(map[*Node]int)
+	for xi, layer := range layers {
+		for yi, node := range layer {
+			rowLocation[node] = xi
+			columnLocation[node] = yi
 		}
+	}
+
+	// Get the position in the "grid" of a given node
+	nodePosition := func(node *Node) (int, int) {
+		X := rowLocation[node]
+		Y := columnLocation[node]
+
+		x := X*29 + 1
+		y := canvasHeight - len(layers[X])*9 - (len(layers[X])-1)*5 - 1 + Y*14
+		y -= (maxWidth - len(layers[X])) * 7
+
+		return x, y
 	}
 
 	// Will need to draw text, have a custom font
@@ -180,54 +213,24 @@ func (n *Network) Draw(fName string) error {
 		return err
 	}
 
-	// Nodes are 15x9, padding 14x5
-	canvasWidth := 2 + 15*maxDepth + 14*(maxDepth-1)
-	canvasHeight := 2 + 9*maxWidth + 5*(maxWidth-1)
-	canvas := image.NewRGBA(image.Rect(0, 0, canvasWidth, canvasHeight))
-
-	// Calculate y positions of each node
-	drawnAtDepth := make(map[int]int)
-	columnLocation := make(map[*Node]int)
-	for node, depth := range _visited {
-		drawnSoFar, ok := drawnAtDepth[depth]
-		if !ok {
-			drawnAtDepth[depth] = 0
-		}
-
-		columnLocation[node] = drawnSoFar
-
-		drawnAtDepth[depth] += 1
-	}
-
-	// TODO: functions to find x, y posiitons of nodes so there isn't a whole bunch of reduplicated spaghetti code
-	// But this was all written by system 1 so idk how to think about organizing it
-
 	// Draw edges first so they don't interfere with reading node labels
 	for _, edge := range n.Edges {
-		x0 := (_visited[edge.In]-1)*29 + 1 + 7
-		y0 := canvasHeight - widthAtDepth[_visited[edge.In]]*9 - (widthAtDepth[_visited[edge.In]]-1)*5 - 1 + columnLocation[edge.In]*14 + 5
-		y0 -= (maxWidth - widthAtDepth[_visited[edge.In]]) * 7
 
-		x1 := (_visited[edge.Out]-1)*29 + 1 + 7
-		y1 := canvasHeight - widthAtDepth[_visited[edge.Out]]*9 - (widthAtDepth[_visited[edge.Out]]-1)*5 - 1 + columnLocation[edge.Out]*14 + 5
-		y1 -= (maxWidth - widthAtDepth[_visited[edge.Out]]) * 7
+		x0, y0 := nodePosition(edge.In)
+		x0 += 7
+		y0 += 7
+		x1, y1 := nodePosition(edge.Out)
+		x1 += 5
+		y1 += 5
 
 		drawEdge(x0, y0, x1, y1, edge.Label, edge.Weight, font, canvas)
 	}
 
 	// Draw columns of nodes
-	drawnAtDepth = make(map[int]int) // Reset tracker for which nodes have been drawn
-	for node, depth := range _visited {
-		drawnSoFar, ok := drawnAtDepth[depth]
-		if !ok {
-			drawnAtDepth[depth] = 0
-		}
+	for _, node := range n.Nodes {
+		xOffset, yOffset := nodePosition(node)
 
-		yOffset := canvasHeight - widthAtDepth[depth]*9 - (widthAtDepth[depth]-1)*5 - 1 + drawnSoFar*14
-		yOffset -= (maxWidth - widthAtDepth[depth]) * 7
-		drawNode((depth-1)*29+1, yOffset, node.Label, font, canvas)
-
-		drawnAtDepth[depth] += 1
+		drawNode(xOffset, yOffset, node.Label, font, canvas)
 	}
 
 	file, _ := os.Create(fName)

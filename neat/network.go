@@ -67,22 +67,20 @@ func (n *Network) Copy() ma.Organism {
 func (n *Network) RandomNeighbor() ma.Organism {
 	neighbor := n.Copy()
 
-	mutations := n.DNA.ListMutations()
-	randomMutationI := rand.Intn(len(mutations))
-
 	// TODO: get from config
 	args := MutateArgs{
 		FeedForward: true,
 	}
 
-	for _, v := range mutations {
-		randomMutationI -= 1
-
-		if randomMutationI == 0 {
-			neighbor.GeneticCode().Mutate(v, args)
-		}
+	r := rand.Float64()
+	mutation := MutationAddConnection
+	if r < 0.1 {
+		mutation = MutationMutateWeight
+	} else if r < 0.3 {
+		mutation = MutationAddNode
 	}
 
+	neighbor.GeneticCode().Mutate(mutation, args)
 	return neighbor
 }
 
@@ -202,7 +200,7 @@ func (n *Network) Compile() error {
 	// TODO: support for other activation functions
 	// Also there is probably a slightly cleaner way of doing this than 3 nearly identical loops but oh well
 	for _, v := range n.DNA.SensorNodes {
-		nodeMap[v] = NewNode(SigmoidFunc)
+		nodeMap[v] = NewNode(IdentityFunc)
 		nodeMap[v].Label = fmt.Sprintf("%d", v)
 		n.Nodes[v] = nodeMap[v]
 	}
@@ -214,7 +212,7 @@ func (n *Network) Compile() error {
 	}
 
 	for _, v := range n.DNA.OutputNodes {
-		nodeMap[v] = NewNode(SigmoidFunc)
+		nodeMap[v] = NewNode(SigmoidFunc) // TODO: is this the best activation function for output?
 		nodeMap[v].Label = fmt.Sprintf("%d", v)
 		n.Nodes[v] = nodeMap[v]
 	}

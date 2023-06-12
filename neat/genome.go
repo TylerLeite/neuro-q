@@ -69,7 +69,7 @@ func (g *Genome) Randomize() {
 		nodesConnected[outNode] = true
 		outNode += inNodes
 
-		c := NewEdgeGene(uint(s), uint(outNode), rand.Float64()-0.5, NoMutation)
+		c := NewEdgeGene(uint(s), uint(outNode), RandomWeight(), NoMutation)
 		g.Connections = append(g.Connections, c)
 	}
 
@@ -80,7 +80,7 @@ func (g *Genome) Randomize() {
 		}
 
 		inNode := uint(rand.Intn(inNodes))
-		c := NewEdgeGene(inNode, uint(o+inNodes), rand.Float64()-0.5, NoMutation)
+		c := NewEdgeGene(inNode, uint(o+inNodes), RandomWeight(), NoMutation)
 		g.Connections = append(g.Connections, c)
 	}
 
@@ -204,7 +204,7 @@ func (g *Genome) AddConnection(feedForward bool) error {
 			continue
 		}
 
-		connection := NewEdgeGene(uint(r1), uint(r2), rand.Float64(), MutationAddConnection)
+		connection := NewEdgeGene(uint(r1), uint(r2), RandomWeight(), MutationAddConnection)
 		g.Connections = append(g.Connections, connection)
 		return nil
 	}
@@ -238,7 +238,7 @@ func (g *Genome) AddNode() {
 
 func (g *Genome) MutateWeight() {
 	randomGene := (g.Connections)[rand.Intn(len(g.Connections))]
-	randomGene.Weight = rand.Float64() - 0.5
+	randomGene.Weight = RandomWeight()
 }
 
 type boolpair []bool
@@ -361,4 +361,8 @@ func (g *Genome) SortConnections() {
 		genes: g.Connections,
 	}
 	sort.Sort(sg)
+}
+
+func RandomWeight() float64 {
+	return rand.Float64()*2 - 1
 }
