@@ -274,7 +274,8 @@ func (g *Genome) PopulateNodeSlices() {
 		} else if !v[0] && v[1] {
 			g.OutputNodes = append(g.OutputNodes, k)
 		} else {
-			// This should be logically impossible to reach, maybe log this
+			// This should be logically impossible to reach
+			fmt.Printf("Found an orphan node during PopulateNodeSlices!\n")
 		}
 	}
 }

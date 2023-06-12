@@ -10,8 +10,50 @@ import (
 	"github.com/TylerLeite/neuro-q/neat"
 )
 
-func TestImage(t *testing.T) {
-	Seed(5)
+func TestKnown(t *testing.T) {
+	xIn := neat.NewNode(IdentityFunc)
+	yIn := neat.NewNode(IdentityFunc)
+
+	rOut := neat.NewNode(IdentityFunc)
+	gOut := neat.NewNode(IdentityFunc)
+	bOut := neat.NewNode(IdentityFunc)
+
+	xIn.AddChild(rOut)
+	yIn.AddChild(gOut)
+
+	const (
+		w = 160
+		h = 90
+	)
+
+	img := image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{w, h}})
+
+	for x := float64(0); x < w; x += 1 {
+		for y := float64(0); y < h; y += 1 {
+			xIn.SetDefaultValue(x / w)
+			yIn.SetDefaultValue(y / h)
+
+			xIn.ForwardPropogate()
+			yIn.ForwardPropogate()
+
+			r := 255 * rOut.Value()
+			g := 255 * gOut.Value()
+			b := 255 * bOut.Value()
+
+			rOut.Reset()
+			gOut.Reset()
+			bOut.Reset()
+
+			img.Set(int(x), int(y), color.RGBA{uint8(r), uint8(g), uint8(b), 0xff})
+		}
+	}
+
+	f, _ := os.Create("_known.png")
+	png.Encode(f, img)
+}
+
+func TestRandom(t *testing.T) {
+	Seed(11)
 
 	f01, _ := RandomFunc()
 	f02, _ := RandomFunc()
@@ -54,22 +96,12 @@ func TestImage(t *testing.T) {
 			xIn.SetDefaultValue(x / w)
 			yIn.SetDefaultValue(y / h)
 
-			// resChan := make(chan float64)
-			// go rOut.CalculateValue(resChan)
-			// r := <-resChan
-			// r *= 255
+			xIn.ForwardPropogate()
+			yIn.ForwardPropogate()
 
-			// go gOut.CalculateValue(resChan)
-			// g := <-resChan
-			// g *= 255
-
-			// go bOut.CalculateValue(resChan)
-			// b := <-resChan
-			// b *= 255
-
-			r := 255 * rOut.CalculateValue(nil)
-			g := 255 * gOut.CalculateValue(nil)
-			b := 255 * bOut.CalculateValue(nil)
+			r := 255 * rOut.Value()
+			g := 255 * gOut.Value()
+			b := 255 * bOut.Value()
 
 			rOut.Reset()
 			gOut.Reset()
@@ -83,17 +115,12 @@ func TestImage(t *testing.T) {
 	png.Encode(f, img)
 }
 
-// Nodes []*Node
-// Edges []*Edge
-
-// DNA        *Genome
-// isCompiled bool
-
 // // Because fitness function is defined on populations and crossover is defined on organisms, need a reference here
 // // TODO: maybe add crossover as a function member of population like fitness is?
-// Population *ma.Population
 
 func TestGeneration(t *testing.T) {
+	Seed(2)
+
 	xIn := neat.NewNode(IdentityFunc)
 	yIn := neat.NewNode(IdentityFunc)
 
@@ -209,22 +236,12 @@ func TestGeneration(t *testing.T) {
 			xIn.SetDefaultValue(x / w)
 			yIn.SetDefaultValue(y / h)
 
-			// resChan := make(chan float64)
-			// go rOut.CalculateValue(resChan)
-			// r := <-resChan
-			// r *= 255
+			xIn.ForwardPropogate()
+			yIn.ForwardPropogate()
 
-			// go gOut.CalculateValue(resChan)
-			// g := <-resChan
-			// g *= 255
-
-			// go bOut.CalculateValue(resChan)
-			// b := <-resChan
-			// b *= 255
-
-			r := 255 * rOut.CalculateValue(nil)
-			g := 255 * gOut.CalculateValue(nil)
-			b := 255 * bOut.CalculateValue(nil)
+			r := 255 * rOut.Value()
+			g := 255 * gOut.Value()
+			b := 255 * bOut.Value()
 
 			rOut.Reset()
 			gOut.Reset()

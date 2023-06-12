@@ -3,7 +3,6 @@ package neat
 import (
 	"fmt"
 	"math"
-	"sync"
 )
 
 type ActivationState int8
@@ -26,9 +25,8 @@ type Node struct {
 	Label string
 
 	state ActivationState
-	lock  *sync.Cond
 
-	fn    ActivationFunction // activation function
+	fn    ActivationFunction
 	value float64
 }
 
@@ -38,9 +36,6 @@ func NewNode(activation ActivationFunction) *Node {
 	n.Out = make([]*Edge, 0)
 
 	n.state = Unactivated
-
-	m := sync.Mutex{}
-	n.lock = sync.NewCond(&m)
 
 	n.fn = activation
 	n.value = math.NaN()
@@ -62,6 +57,10 @@ func (n *Node) ToString() string {
 	return fmt.Sprintf("%s:\nin: %s\nout: %s\n", n.Label, inRepr, outRepr)
 }
 
+func (n *Node) Value() float64 {
+	return n.value
+}
+
 func (n *Node) SetDefaultValue(m float64) *Node {
 	n.value = m
 	return n
@@ -75,56 +74,40 @@ func (n *Node) AddChild(c *Node) *Edge {
 	return e
 }
 
-// TODO: recurrent CalculateValue()
-func (n *Node) CalculateValue(resultChan chan float64) float64 {
-	for n.state == InActivation {
-		n.lock.Wait()
-	}
-
-	if n.state == Unactivated {
-		n.lock.L.Lock()
-		n.state = InActivation
-
-		if len(n.In) > 0 {
-			// this is not an input node
-
-			// need to sum all parent inputs
-			sumChan := make(chan float64)
-			for _, p := range n.In {
-				if p == nil {
-					continue
-				}
-				go p.CalculateValue(sumChan) // make sure u send input upstream
-			}
-
+func (n *Node) ForwardPropogate() {
+	if n.state != Activated {
+		if len(n.In) == 0 {
+			n.state = Activated
+			n.value = n.fn(n.value)
+		} else {
+			// Get sum of inputs
 			sum := 0.0
-			for range n.In {
-				res := <-sumChan
-				sum += res
+			for _, p := range n.In {
+				if p.In.state != Activated {
+					return
+				} else {
+					sum += p.In.value
+				}
 			}
-
-			// then run that through the activation function
+			n.state = Activated
 			n.value = n.fn(sum)
 		}
-
-		n.state = Activated
-		n.lock.L.Unlock()
-		n.lock.Broadcast()
 	}
 
-	if resultChan != nil {
-		resultChan <- n.value
+	// Pay it forward
+	for _, p := range n.Out {
+		p.ForwardPropogate()
 	}
-	return n.value
 }
 
-// for now, assume reset is only called after a given calculate is done running
+// For now, assume reset is only called after a given calculate is done running
 func (n *Node) Reset() {
 	if n.state == Unactivated {
 		return
 	}
 
 	n.state = Unactivated
+	n.value = math.NaN()
 	for _, edge := range n.In {
 		edge.Reset()
 	}

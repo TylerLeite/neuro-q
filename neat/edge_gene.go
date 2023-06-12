@@ -33,7 +33,11 @@ func (e *EdgeGene) Copy() *EdgeGene {
 }
 
 func (e *EdgeGene) ToString() string {
-	return fmt.Sprintf("{%d | %d,%d @ %.2f}", e.InnovationNumber, e.InNode, e.OutNode, e.Weight)
+	enabledStr := "|"
+	if !e.Enabled {
+		enabledStr = "x"
+	}
+	return fmt.Sprintf("{%d %s %d,%d (%d) @ %.2f}", e.InnovationNumber, enabledStr, e.InNode, e.OutNode, e.Origin, e.Weight)
 }
 
 func (e *EdgeGene) InnovationKey() string {

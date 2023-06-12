@@ -24,16 +24,12 @@ func (e *Edge) ToString() string {
 	return fmt.Sprintf("{%s %s @ %.2g}", e.In.Label, e.Out.Label, e.Weight)
 }
 
-func (e *Edge) CalculateValue(sumChan chan float64) float64 {
-	chainChan := make(chan float64)
-	go e.In.CalculateValue(chainChan)
-	value := e.Weight * <-chainChan
-	if sumChan != nil {
-		sumChan <- value
-	}
-	return value
+func (e *Edge) ForwardPropogate() {
+	e.Out.ForwardPropogate()
 }
 
 func (e *Edge) Reset() {
-	e.In.Reset()
+	if e.In.state != Unactivated {
+		e.In.Reset()
+	}
 }

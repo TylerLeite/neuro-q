@@ -36,9 +36,6 @@ func xor(x, y int) int {
 }
 
 func NeatFitness(o ma.Organism) float64 {
-	fmt.Println("fitness start")
-	o.(*Network).Draw("debug.bmp")
-	fmt.Println(o.GeneticCode().ToString())
 	n := o.(*Network)
 	n.Compile()
 
@@ -57,14 +54,17 @@ func NeatFitness(o ma.Organism) float64 {
 			inX.SetDefaultValue(float64(x))
 			inY.SetDefaultValue(float64(y))
 
-			result := out.CalculateValue(nil)
+			bias.ForwardPropogate()
+			inX.ForwardPropogate()
+			inY.ForwardPropogate()
+
+			result := out.Value()
 			fitness -= math.Abs(result - float64(xor(x, y)))
 
 			out.Reset()
 		}
 	}
 
-	fmt.Println("fitness end")
 	return fitness
 }
 

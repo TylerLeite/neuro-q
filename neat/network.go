@@ -2,7 +2,6 @@ package neat
 
 import (
 	"fmt"
-	_ "fmt"
 	"math/rand"
 
 	"github.com/TylerLeite/neuro-q/ma"
