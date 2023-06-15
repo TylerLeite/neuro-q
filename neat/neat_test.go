@@ -5,6 +5,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/TylerLeite/neuro-q/log"
 	"github.com/TylerLeite/neuro-q/ma"
 )
 
@@ -57,11 +58,13 @@ func NeatFitness(o ma.Organism) float64 {
 		}
 	}
 
-	Log(fmt.Sprintf("Bias label: %s, X: %s, Y: %s\n", bias.Label, inX.Label, inY.Label), DEBUG, DEBUG_PROPAGATION)
+	log.Book(fmt.Sprintf("Bias label: %s, X: %s, Y: %s\n", bias.Label, inX.Label, inY.Label), log.DEBUG, log.DEBUG_PROPAGATION)
 
 	out := n.Nodes[n.DNA.OutputNodes[0]]
 
 	fitness := float64(0)
+
+	correctAnswers := 0
 
 	for x := 0; x < 2; x += 1 {
 		for y := 0; y < 2; y += 1 {
@@ -70,21 +73,27 @@ func NeatFitness(o ma.Organism) float64 {
 
 			result := out.Value()
 			if math.IsNaN(result) {
-				Log(n.ToString(), DEBUG)
+				log.Book(n.ToString(), log.DEBUG)
 				panic("NaN network")
 			}
-			Log(fmt.Sprintf("Inputs were: %v and output was: %0.2g\n", inputValues, out.value), DEBUG, DEBUG_PROPAGATION)
+			log.Book(fmt.Sprintf("Inputs were: %v and output was: %0.2g\n", inputValues, out.value), log.DEBUG, log.DEBUG_PROPAGATION)
 
 			target := float64(xor(x, y))
+
+			if target == 1 && result >= 0.5 || target == 0 && result < 0.5 {
+				correctAnswers += 1
+			}
 
 			fitness += (result - target) * (result - target)
 		}
 	}
 
-	// sizeScore := 1 / float64(len(n.Edges))
-
 	// Take reciprocal of square, want maximum value at minimum difference between result + target
-	fitness = 16 / (1 + fitness) // - sizeScore
+	fitness = 16 / (1 + fitness)
+	if correctAnswers == 4 {
+		fitness = math.Inf(1)
+	}
+
 	return fitness
 }
 
@@ -119,7 +128,7 @@ func NeatVerify(o ma.Organism) int {
 
 			outValue := out.Value()
 			if math.IsNaN(outValue) {
-				Log(n.ToString(), DEBUG)
+				log.Book(n.ToString(), log.DEBUG)
 				panic("NaN network")
 			}
 
@@ -132,7 +141,7 @@ func NeatVerify(o ma.Organism) int {
 			if result == target {
 				testsPassed += 1
 			}
-			Log(fmt.Sprintf("Inputs were: %v and output was: %dg\n", inputValues, result), DEBUG, DEBUG_PROPAGATION)
+			log.Book(fmt.Sprintf("Inputs were: %v and output was: %dg\n", inputValues, result), log.DEBUG, log.DEBUG_PROPAGATION)
 		}
 	}
 
@@ -211,6 +220,7 @@ func TestXor(t *testing.T) {
 	fmt.Printf("Fitness of manual xor solution: %.2g\n", fitness)
 }
 
+// TODO: This is mostly the same from generation to generation. Maybe add it as a function in epoch.go
 func TestEvolution(t *testing.T) {
 	ResetInnovationHistory()
 
@@ -229,10 +239,10 @@ func TestEvolution(t *testing.T) {
 	p.C1 = 10
 	p.C3 = 0.4
 
+	// TODO: debug log flag for console output
+
 	fmt.Printf("Generate...\n")
 	p.Generate()
-	fmt.Printf("Separate into species...\n")
-	p = p.SeparateIntoSpecies()
 
 	// run for at most G generations
 	const G int = 1000
@@ -248,89 +258,27 @@ func TestEvolution(t *testing.T) {
 
 		fmt.Printf("New generation, %d/%d\n", i+1, G)
 
-		speciesLengths := make([]int, len(p.Species))
-		for j, species := range p.Species {
-			speciesLengths[j] = len(species.Members)
-		}
-		fmt.Printf("%d species, lengths: %v\n", len(p.Species), speciesLengths)
+		_, championFitnesses := p.Epoch()
 
-		p2 := p.Copy()
-		// TODO: sort by max fitness, kill off unfit species
-		// p2.SortSpecies()
-		for j := len(p2.Species) - 1; j >= 0; j -= 1 {
-			species := p2.Species[j]
-			species.UpdateFitnessHistory()
-			fmt.Printf("Local search, %d/%d...\n", j+1, len(p2.Species))
-			species.LocalSearch()
-			if species.HasStagnated() {
-				fmt.Printf("Stagnation, %d/%d...\n", j+1, len(p2.Species))
-				p2.Species = append(p2.Species[:j], p2.Species[j+1:]...)
-				continue
-			}
-			fmt.Printf("Selection, %d/%d...\n", j+1, len(p2.Species))
-			species.Selection()
-		}
-
-		// Need another loop so recombination happens after all stagnant species are culled
-		culledPopulationCount := float64(p2.CountMembers())
-		for j, species := range p2.Species {
-			fmt.Printf("Recombination, %d/%d...\n", j+1, len(p2.Species))
-			species.Recombination(culledPopulationCount)
-		}
-
-		fmt.Printf("Separate into species, %d/%d..\n", i+1, G)
-		p = p2.SeparateIntoSpecies()
-
-		massExtinct := true
-		for _, species := range p2.Species {
-			if len(species.Members) > 0 {
-				massExtinct = false
-			}
-
-			maxFitnessHistory = maxFitnessHistory[:i]
-			for j, fitness := range maxFitnessHistory {
-				fmt.Printf("Generation %d: %g\n", j+1, fitness)
-			}
-		}
-		if massExtinct {
-			panic("Science went too far")
-		}
-
-		maxFitnessThisGeneration := float64(0)
-		fmt.Println("Champion fitness per species:")
-
-		for j, species := range p2.Species {
-			champion := species.Champion()
-
-			championFitness := p2.FitnessOf(champion)
-			championNetwork := champion.(*Network)
-			championNetwork.Draw(fmt.Sprintf("drawn/%d_%d.bmp", i, j))
-			fmt.Printf("species #%d/%d: f=%.2g\n%s\n%s\n", j+1, len(p2.Species), championFitness, championNetwork.DNA.ToString(), championNetwork.ToString())
-
+		maxFitnessThisGeneration := 0.0
+		for _, championFitness := range championFitnesses {
 			if championFitness > maxFitnessThisGeneration {
 				maxFitnessThisGeneration = championFitness
 			}
 
-			correctAnswers := NeatVerify(championNetwork)
-			if correctAnswers == 4 {
+			if math.IsInf(championFitness, 1) {
+				fmt.Println("Found a fully verified network!")
 				fullyVerified = true
-			} else {
-				fmt.Printf("%d correct answers\n", correctAnswers)
 			}
 		}
 
 		if i > 0 {
 			maxFitnessHistory[i-1] = maxFitnessThisGeneration
 		}
-		fmt.Println()
-	}
-
-	if fullyVerified {
-		fmt.Println("Found a fully verified network!")
 	}
 
 	fmt.Println("Fitness history:")
-	for i, fitness := range maxFitnessHistory {
-		fmt.Printf("Generation %d: %g\n", i+1, fitness)
+	for j, fitness := range maxFitnessHistory[:i] {
+		fmt.Printf("Generation %d: %g\n", j+1, fitness)
 	}
 }

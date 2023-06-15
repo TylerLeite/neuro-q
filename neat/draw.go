@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 
+	"github.com/TylerLeite/neuro-q/log"
 	"golang.org/x/image/bmp"
 )
 
@@ -107,7 +108,7 @@ func drawEdge(x0, y0, x1, y1 int, label string, weight float64, font image.Image
 		dx *= -1
 	}
 
-	Log(fmt.Sprintf("(%d, %d) -> (%d, %d) | slope: %.2g, dx: %.2g, dy:%.2g\n", x0, y0, x1, y1, slope, dx, dy), DEBUG, DEBUG_DRAW)
+	log.Book(fmt.Sprintf("(%d, %d) -> (%d, %d) | slope: %.2g, dx: %.2g, dy:%.2g\n", x0, y0, x1, y1, slope, dx, dy), log.DEBUG, log.DEBUG_DRAW)
 
 	// Long-winded way of checking if the cursor is over the end point
 	for {
@@ -118,7 +119,7 @@ func drawEdge(x0, y0, x1, y1 int, label string, weight float64, font image.Image
 		yReached := dy <= 0 && y < float64(y1) || dy >= 0 && y > float64(y1)
 
 		if xReached && yReached {
-			Log(fmt.Sprintf("Cursor reached (%d, %d). x=%.2g, y=%.2g\n", x1, y1, x, y), DEBUG, DEBUG_DRAW)
+			log.Book(fmt.Sprintf("Cursor reached (%d, %d). x=%.2g, y=%.2g\n", x1, y1, x, y), log.DEBUG, log.DEBUG_DRAW)
 			break
 		}
 
@@ -139,7 +140,7 @@ func drawEdge(x0, y0, x1, y1 int, label string, weight float64, font image.Image
 		xPixel := int(math.Round(x))
 		yPixel := int(math.Round(y))
 		canvas.Set(xPixel, yPixel, color.RGBA{R: 128, G: uint8(g), B: uint8(b), A: math.MaxUint8})
-		Log(fmt.Sprintf("Drawing at (%d, %d), color (128,%d,%d)\n", xPixel, yPixel, uint8(g), uint8(b)), DEBUG, DEBUG_DRAW)
+		log.Book(fmt.Sprintf("Drawing at (%d, %d), color (128,%d,%d)\n", xPixel, yPixel, uint8(g), uint8(b)), log.DEBUG, log.DEBUG_DRAW)
 	}
 }
 

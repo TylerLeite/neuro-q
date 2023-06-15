@@ -8,6 +8,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/TylerLeite/neuro-q/ma"
 	"github.com/TylerLeite/neuro-q/neat"
 )
 
@@ -92,7 +93,7 @@ func TestKnown(t *testing.T) {
 }
 
 func TestRandom(t *testing.T) {
-	Seed(11)
+	Seed(3)
 
 	f01, _ := RandomFunc()
 	f02, _ := RandomFunc()
@@ -155,7 +156,7 @@ func TestRandom(t *testing.T) {
 // // TODO: maybe add crossover as a function member of population like fitness is?
 
 func TestGeneration(t *testing.T) {
-	Seed(2)
+	Seed(11)
 
 	allNodes := make([]*neat.Node, 0)
 
@@ -308,28 +309,38 @@ func TestGeneration(t *testing.T) {
 	png.Encode(f, img)
 }
 
+func CPPNFitness(o ma.Organism) float64 {
+	return 0
+}
+
 func TestEvolution(t *testing.T) {
-	// // firstGenerationMutations := make(map[string]uint)
+	neat.ResetInnovationHistory()
+	// ResetInnovationHistory()
 
-	// // Create seed
-	// // TODO: include seed file in population, read it here
-	// seedGenome := Genome{}
-	// seedGenome.SensorNodes = make([]uint, inNodes)
-	// seedGenome.OutputNodes = make([]uint, outNodes)
+	seedGenome := neat.NewGenome(2, 3, false)
+	seedNetwork := neat.NewNetwork(seedGenome, nil)
+	// seedGenome := NewGenome(2, 3, false)
+	// seedNetwork := NewNetwork(seedGenome, nil)
 
-	// // TODO: NewOrganism() in cppn
-	// var seed ma.Organism = nil
-	// seed.LoadGeneticCode(&seedGenome)
+	p := ma.NewPopulation(ma.Organism(seedNetwork), CPPNFitness)
+	seedNetwork.Population = p
 
-	// population := ma.NewPopulation(size, seed)
-	// species := ma.NewSpecies(population)
-	// species.Members = make([]ma.Organism, size)
+	p.DistanceThreshold = 2
+	p.CullingPercent = 0.5
+	p.RecombinationPercent = 0.8
+	p.MinimumEntropy = 0.35
+	p.LocalSearchGenerations = 16
 
-	// for i := 0; i < size; i += 1 {
-	// 	genome := seedGenome.Randomize()
-	// 	organism := seed.NewFromGeneticCode(genome)
-	// 	species.Members[i] = organism
+	p.C1 = 10
+	p.C3 = 0.4
+
+	// G := 100
+	// for i := 0; i < G; i += 1 {
+	// 	p.Epoch()
+
+	// 	for _, species := range p.Species {
+	// 		championNetwork := species.Champion().(*Network)
+	// 		championNetwork.Draw("<filename>.bmp")
+	// 	}
 	// }
-
-	// return population.SeparateIntoSpecies()
 }

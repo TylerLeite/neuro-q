@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"sort"
 
+	"github.com/TylerLeite/neuro-q/log"
 	"github.com/TylerLeite/neuro-q/ma"
 )
 
@@ -206,7 +207,7 @@ func (g *Genome) checkForCycles(in, out int) bool {
 		outNode := edge.OutNode
 		if outNode == uint(in) {
 			foundACycle = true
-			Log(fmt.Sprintf("Found a cycle :/\n%s\n", g.ToString()), DEBUG, DEBUG_ADD_CONNECTION)
+			log.Book(fmt.Sprintf("Found a cycle :/\n%s\n", g.ToString()), log.DEBUG, log.DEBUG_ADD_CONNECTION)
 			break
 		} else {
 			// TODO: so nested :(
@@ -239,7 +240,7 @@ func (e *AddConnectionError) Error() string {
 
 // TODO: Make it so feedForward actually matters
 func (g *Genome) AddConnection(feedForward bool) error {
-	Log("Mutate add conection", DEBUG, DEBUG_ADD_CONNECTION)
+	log.Book("Mutate add conection", log.DEBUG, log.DEBUG_ADD_CONNECTION)
 	nIn := len(g.SensorNodes) + len(g.HiddenNodes)
 	nOut := len(g.HiddenNodes) + len(g.OutputNodes)
 
@@ -266,7 +267,7 @@ func (g *Genome) AddConnection(feedForward bool) error {
 			if r2 == r1 {
 				continue
 			} else {
-				Log(fmt.Sprintf("Found two nodes to try to connect, %d -> %d\n", r1, r2), DEBUG, DEBUG_ADD_CONNECTION)
+				log.Book(fmt.Sprintf("Found two nodes to try to connect, %d -> %d\n", r1, r2), log.DEBUG, log.DEBUG_ADD_CONNECTION)
 				break
 			}
 		}
@@ -275,7 +276,7 @@ func (g *Genome) AddConnection(feedForward bool) error {
 		for _, c := range g.Connections {
 			if c.InNode == uint(r1) && c.OutNode == uint(r2) {
 				duplicateEdge = true
-				Log(fmt.Sprintf("Duplicate edge: %s\n", c.ToString()), DEBUG, DEBUG_ADD_CONNECTION)
+				log.Book(fmt.Sprintf("Duplicate edge: %s\n", c.ToString()), log.DEBUG, log.DEBUG_ADD_CONNECTION)
 				break
 			}
 		}
@@ -295,7 +296,7 @@ func (g *Genome) AddConnection(feedForward bool) error {
 		return nil
 	}
 
-	Log("SanityError\n", DEBUG, DEBUG_ADD_CONNECTION)
+	log.Book("SanityError\n", log.DEBUG, log.DEBUG_ADD_CONNECTION)
 	return NewAddConnectionError("Reached sanity limit trying to add a new connection")
 }
 
@@ -330,7 +331,7 @@ func (g *Genome) AddNode() error {
 		return NewAddNodeError("Could not find an enbabled gene to bifurcate")
 	}
 
-	Log(fmt.Sprintf("Adding a node to connection: %s\n", randomGene.ToString()), DEBUG, DEBUG_ADD_NODE)
+	log.Book(fmt.Sprintf("Adding a node to connection: %s\n", randomGene.ToString()), log.DEBUG, log.DEBUG_ADD_NODE)
 
 	// Need to add a node between the two nodes of the existing connection. Figure out what to call that node
 	nextNode := uint(len(g.SensorNodes) + len(g.HiddenNodes) + len(g.OutputNodes))
@@ -340,14 +341,14 @@ func (g *Genome) AddNode() error {
 	// 	nextNode = uint(len(g.SensorNodes) + len(g.OutputNodes))
 	// }
 
-	Log(fmt.Sprintf("Next node is %d\n", nextNode), DEBUG, DEBUG_ADD_NODE)
+	log.Book(fmt.Sprintf("Next node is %d\n", nextNode), log.DEBUG, log.DEBUG_ADD_NODE)
 
 	// Create two new connection genes to fit this node into the network
 	// -> new is weight 1, new -> is the old edge's weight
 	new1 := NewEdgeGene(randomGene.InNode, nextNode, 1, MutationAddNode)
 	new2 := NewEdgeGene(nextNode, randomGene.OutNode, randomGene.Weight, MutationAddNode)
 
-	Log(fmt.Sprintf("New edges:\n%s\n%s\n", new1.ToString(), new2.ToString()), DEBUG, DEBUG_ADD_NODE)
+	log.Book(fmt.Sprintf("New edges:\n%s\n%s\n", new1.ToString(), new2.ToString()), log.DEBUG, log.DEBUG_ADD_NODE)
 
 	// Disable the old connection
 	randomGene.Enabled = false
@@ -355,7 +356,7 @@ func (g *Genome) AddNode() error {
 	g.Connections = append(g.Connections, []*EdgeGene{new1, new2}...)
 	g.HiddenNodes = append(g.HiddenNodes, nextNode)
 
-	if DEBUG_ADD_NODE {
+	if log.DEBUG_ADD_NODE {
 		// Make sure we didn't cut off any dang ol' nodes
 		usedNodes := make(map[uint]bool)
 

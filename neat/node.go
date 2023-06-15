@@ -3,6 +3,8 @@ package neat
 import (
 	"fmt"
 	"math"
+
+	"github.com/TylerLeite/neuro-q/log"
 )
 
 type ActivationState int8
@@ -104,9 +106,9 @@ func (n *Node) AddChild(c *Node) *Edge {
 func (n *Node) ForwardPropogate() {
 	n.visited = true
 	if n.state != Activated {
-		Log(fmt.Sprintf("%s not activated, trying activation\n", n.Label), DEBUG, DEBUG_PROPAGATION)
+		log.Book(fmt.Sprintf("%s not activated, trying activation\n", n.Label), log.DEBUG, log.DEBUG_PROPAGATION)
 		if len(n.In) == 0 {
-			Log(fmt.Sprintf("%s is an input node\n", n.Label), DEBUG, DEBUG_PROPAGATION)
+			log.Book(fmt.Sprintf("%s is an input node\n", n.Label), log.DEBUG, log.DEBUG_PROPAGATION)
 			n.state = Activated
 			n.value = n.fn(n.value)
 		} else {
@@ -118,27 +120,27 @@ func (n *Node) ForwardPropogate() {
 			allActivated := true
 			for _, p := range n.In {
 				if math.IsNaN(p.In.value) {
-					Log(fmt.Sprintf("%s has an input which is not yet activated (%s)\n", n.Label, p.In.Label), DEBUG, DEBUG_PROPAGATION)
+					log.Book(fmt.Sprintf("%s has an input which is not yet activated (%s)\n", n.Label, p.In.Label), log.DEBUG, log.DEBUG_PROPAGATION)
 					allActivated = false
 				} else if p.In.Type != BiasNode {
 					sum += p.In.value * p.Weight
-					Log(fmt.Sprintf("Adding #%s (value = %.2g*%.2g) to sum\n", p.In.Label, p.In.value, p.Weight), DEBUG, DEBUG_PROPAGATION)
+					log.Book(fmt.Sprintf("Adding #%s (value = %.2g*%.2g) to sum\n", p.In.Label, p.In.value, p.Weight), log.DEBUG, log.DEBUG_PROPAGATION)
 					// anyActivated = true
 				} else {
 					bias = p.In.value * p.Weight
-					Log(fmt.Sprintf("Adding #%s (value = %.2g*%.2g) to bias\n", p.In.Label, p.In.value, p.Weight), DEBUG, DEBUG_PROPAGATION)
+					log.Book(fmt.Sprintf("Adding #%s (value = %.2g*%.2g) to bias\n", p.In.Label, p.In.value, p.Weight), log.DEBUG, log.DEBUG_PROPAGATION)
 					// anyActivated = true
 				}
 			}
 
 			// if !anyActivated || (!allActivated && len(n.Out) == 0) {
 			// 	// Don't set an output value unless all its inputs are activated
-			// 	Log(fmt.Sprintf("%s activation unsucessful\n", n.Label), DEBUG, DEBUG_PROPAGATION)
+			// 	log.Book(fmt.Sprintf("%s activation unsucessful\n", n.Label), log.DEBUG, log.DEBUG_PROPAGATION)
 			// 	return
 			// }
 			if !allActivated {
 				// Don't set an output value unless all its inputs are activated
-				Log(fmt.Sprintf("%s activation unsucessful\n", n.Label), DEBUG, DEBUG_PROPAGATION)
+				log.Book(fmt.Sprintf("%s activation unsucessful\n", n.Label), log.DEBUG, log.DEBUG_PROPAGATION)
 				return
 			}
 
@@ -146,16 +148,16 @@ func (n *Node) ForwardPropogate() {
 				n.state = Activated
 			}
 
-			Log(fmt.Sprintf("Sum is %.2g, bias is %.2g\n", sum, bias), DEBUG, DEBUG_PROPAGATION)
+			log.Book(fmt.Sprintf("Sum is %.2g, bias is %.2g\n", sum, bias), log.DEBUG, log.DEBUG_PROPAGATION)
 			n.value = n.fn(sum) + bias
-			Log(fmt.Sprintf("%s activation successful! Value = %.2g\n", n.Label, n.value), DEBUG, DEBUG_PROPAGATION)
+			log.Book(fmt.Sprintf("%s activation successful! Value = %.2g\n", n.Label, n.value), log.DEBUG, log.DEBUG_PROPAGATION)
 		}
 	}
 
 	// Pay it forward
 	for _, p := range n.Out {
 		if !p.Out.visited {
-			Log(fmt.Sprintf("Propagating to %s\n", p.Out.Label), DEBUG, DEBUG_PROPAGATION)
+			log.Book(fmt.Sprintf("Propagating to %s\n", p.Out.Label), log.DEBUG, log.DEBUG_PROPAGATION)
 			p.ForwardPropogate()
 		}
 	}
@@ -163,13 +165,13 @@ func (n *Node) ForwardPropogate() {
 
 // For now, assume reset is only called after a given calculate is done running
 func (n *Node) Reset() {
-	Log(fmt.Sprintf("Resetting %s\n", n.Label), DEBUG, DEBUG_RESET)
+	log.Book(fmt.Sprintf("Resetting %s\n", n.Label), log.DEBUG, log.DEBUG_RESET)
 	n.state = Unactivated
 	n.value = math.NaN()
 	n.visited = false
 }
 
 func (n *Node) Deactivate() {
-	Log(fmt.Sprintf("Deactivating %s\n", n.Label), DEBUG, DEBUG_RESET)
+	log.Book(fmt.Sprintf("Deactivating %s\n", n.Label), log.DEBUG, log.DEBUG_RESET)
 	n.visited = false
 }

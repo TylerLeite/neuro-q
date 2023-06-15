@@ -1,4 +1,4 @@
-package neat
+package log
 
 const (
 	DEBUG_PROPAGATION    = false
@@ -8,5 +8,4 @@ const (
 	DEBUG_ADD_CONNECTION = false
 	DEBUG_ADD_NODE       = false
 	DEBUG_MUTATION       = false
-	DEBUG_EPOCH          = false
 )

@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/rand"
 
+	"github.com/TylerLeite/neuro-q/log"
 	"github.com/TylerLeite/neuro-q/ma"
 )
 
@@ -85,7 +86,7 @@ func (n *Network) RandomNeighbor() ma.Organism {
 	neighbor.GeneticCode().Mutate(mutation, args)
 
 	// Check validity
-	if DEBUG_MUTATION {
+	if log.DEBUG_MUTATION {
 		neighbor.Compile()
 		network := neighbor.(*Network)
 
@@ -105,7 +106,7 @@ func (n *Network) RandomNeighbor() ma.Organism {
 		}
 
 		if foundErrors {
-			Log(fmt.Sprintf("vvvvvvvvvv\n%s\n %s\n", network.ToString(), neighbor.GeneticCode().ToString()), DEBUG_MUTATION)
+			log.Book(fmt.Sprintf("vvvvvvvvvv\n%s\n %s\n", network.ToString(), neighbor.GeneticCode().ToString()), log.DEBUG_MUTATION)
 			panic("Found errors in RandomNeighbor()")
 		}
 	}
@@ -239,7 +240,7 @@ func (n *Network) Compile() error {
 	nNodes := len(n.DNA.SensorNodes) + len(n.DNA.HiddenNodes) + len(n.DNA.OutputNodes)
 	n.Nodes = make([]*Node, nNodes)
 
-	Log(fmt.Sprintf("Allocating space for %d + %d + %d = %d nodes.\n", len(n.DNA.SensorNodes), len(n.DNA.HiddenNodes), len(n.DNA.OutputNodes), len(n.Nodes)), DEBUG, DEBUG_COMPILE)
+	log.Book(fmt.Sprintf("Allocating space for %d + %d + %d = %d nodes.\n", len(n.DNA.SensorNodes), len(n.DNA.HiddenNodes), len(n.DNA.OutputNodes), len(n.Nodes)), log.DEBUG, log.DEBUG_COMPILE)
 
 	// TODO: support for other activation functions
 	// Also there is probably a slightly cleaner way of doing this than 3 nearly identical loops but oh well
@@ -262,10 +263,10 @@ func (n *Network) Compile() error {
 		n.Nodes[v].Label = fmt.Sprintf("%d", v)
 	}
 
-	if DEBUG_COMPILE {
+	if log.DEBUG_COMPILE {
 		for i, n := range n.Nodes {
 			if n == nil || fmt.Sprintf("%d", i) != n.Label {
-				Log(fmt.Sprintf("%s\n", n.ToString()), DEBUG, DEBUG_COMPILE)
+				log.Book(fmt.Sprintf("%s\n", n.ToString()), log.DEBUG, log.DEBUG_COMPILE)
 				panic("Nodes not in order while compiling!")
 			}
 		}
@@ -274,10 +275,10 @@ func (n *Network) Compile() error {
 	// Create all edges
 	for _, v := range n.DNA.Connections {
 		if !v.Enabled {
-			Log(fmt.Sprintf("Skipping disabled connection from %d to %d\n", v.InNode, v.OutNode), DEBUG, DEBUG_COMPILE)
+			log.Book(fmt.Sprintf("Skipping disabled connection from %d to %d\n", v.InNode, v.OutNode), log.DEBUG, log.DEBUG_COMPILE)
 			continue
 		}
-		Log(fmt.Sprintf("Adding connection from %d to %d\n", v.InNode, v.OutNode), DEBUG, DEBUG_COMPILE)
+		log.Book(fmt.Sprintf("Adding connection from %d to %d\n", v.InNode, v.OutNode), log.DEBUG, log.DEBUG_COMPILE)
 		newEdge := n.Nodes[v.InNode].AddChild(n.Nodes[v.OutNode])
 		newEdge.Label = fmt.Sprintf("%d (%s)", v.InnovationNumber, MutationTypeToString[v.Origin])
 		newEdge.Weight = v.Weight
@@ -309,7 +310,7 @@ func (n *Network) Activate(inputs []float64, sensors, outputs []*Node) error {
 
 		for i, in := range sensors {
 			in.SetDefaultValue(inputs[i])
-			Log(fmt.Sprintf("Sensor %s prop\n", in.Label), DEBUG, DEBUG_PROPAGATION)
+			log.Book(fmt.Sprintf("Sensor %s prop\n", in.Label), log.DEBUG, log.DEBUG_PROPAGATION)
 			in.ForwardPropogate()
 
 			// Want to be able to revisit nodes once you have a new input
@@ -327,7 +328,7 @@ func (n *Network) Activate(inputs []float64, sensors, outputs []*Node) error {
 		sanity -= 1
 	}
 
-	Log(fmt.Sprintf("\nProp trace\n%s\nGenome:\n%s\n%s\n", n.ToString(), n.DNA.NodesToString(), n.DNA.ToString()), DEBUG, DEBUG_PROPAGATION)
+	log.Book(fmt.Sprintf("\nProp trace\n%s\nGenome:\n%s\n%s\n", n.ToString(), n.DNA.NodesToString(), n.DNA.ToString()), log.DEBUG, log.DEBUG_PROPAGATION)
 
 	if sanity <= 0 {
 		return errors.New("canceling activation, too many loops in the network")

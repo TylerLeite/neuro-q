@@ -1,8 +1,11 @@
 package ma
 
 import (
+	"fmt"
 	"math"
 	"sort"
+
+	"github.com/TylerLeite/neuro-q/log"
 )
 
 type FitnessFunction func(Organism) float64
@@ -115,11 +118,13 @@ func (p *Population) Generate() {
 
 		p.Species[0].Members = append(p.Species[0].Members, newOrganism)
 	}
+
+	p.SeparateIntoSpecies()
 }
 
 // Output a new, speciated population
-func (p *Population) SeparateIntoSpecies() *Population {
-	newPopulation := p.CopyConfig()
+func (p *Population) SeparateIntoSpecies() {
+	// newPopulation := p.CopyConfig()
 
 	representatives := make([]Organism, len(p.Species))
 	for i, species := range p.Species {
@@ -129,7 +134,7 @@ func (p *Population) SeparateIntoSpecies() *Population {
 		}
 	}
 
-	newPopulation.Species = make([]*Species, len(p.Species)) // Need new species to line up with matching old species
+	nextGenSpecies := make([]*Species, len(p.Species)) // Need new species to line up with matching old species
 
 	for _, currentIndividual := range p.Members() {
 		foundASpecies := false
@@ -138,12 +143,12 @@ func (p *Population) SeparateIntoSpecies() *Population {
 			// Place this individual into the first species where it fits
 			// TODO: figure out actual values for these constants
 			d := currentIndividual.GeneticCode().DistanceFrom(representative.GeneticCode(), p.C1, p.C2, p.C3)
-			if d < newPopulation.DistanceThreshold {
-				if newPopulation.Species[i] == nil {
-					newPopulation.Species[i] = NewSpecies(p)
+			if d < p.DistanceThreshold {
+				if nextGenSpecies[i] == nil {
+					nextGenSpecies[i] = NewSpecies(p)
 				}
 
-				newPopulation.Species[i].Members = append(newPopulation.Species[i].Members, currentIndividual.Copy())
+				nextGenSpecies[i].Members = append(nextGenSpecies[i].Members, currentIndividual.Copy())
 				foundASpecies = true
 				break
 			}
@@ -151,9 +156,9 @@ func (p *Population) SeparateIntoSpecies() *Population {
 
 		if !foundASpecies {
 			// Make a new species with this individual as the representative
-			newSpecies := NewSpecies(newPopulation)
+			newSpecies := NewSpecies(p)
 			newSpecies.Members = append(newSpecies.Members, currentIndividual.Copy())
-			newPopulation.Species = append(newPopulation.Species, newSpecies)
+			nextGenSpecies = append(nextGenSpecies, newSpecies)
 
 			// Also need a representative for this species
 			representatives = append(representatives, currentIndividual)
@@ -161,13 +166,13 @@ func (p *Population) SeparateIntoSpecies() *Population {
 	}
 
 	// Clean up empty species
-	for i := len(newPopulation.Species) - 1; i >= 0; i -= 1 {
-		if newPopulation.Species[i] == nil {
-			newPopulation.Species = append(newPopulation.Species[:i], newPopulation.Species[i+1:]...)
+	for i := len(nextGenSpecies) - 1; i >= 0; i -= 1 {
+		if nextGenSpecies[i] == nil {
+			nextGenSpecies = append(nextGenSpecies[:i], nextGenSpecies[i+1:]...)
 		}
 	}
 
-	return newPopulation
+	p.Species = nextGenSpecies
 }
 
 func (p *Population) SortSpecies() []*Species {
@@ -180,6 +185,68 @@ func (p *Population) SortSpecies() []*Species {
 // TODO: Make sure population is at its size. Either cull extra organisms or distribute new organisms among most fit species
 func (p *Population) Stabilization() {
 	//
+}
+
+// TODO: Wrap the output in a new type?
+func (p *Population) Epoch() ([]GeneticCode, []float64) {
+	speciesLengths := make([]int, len(p.Species))
+	for i, species := range p.Species {
+		speciesLengths[i] = len(species.Members)
+	}
+	log.Book(fmt.Sprintf("%d species, lengths: %v\n", len(p.Species), speciesLengths), log.DEBUG, log.DEBUG_EPOCH)
+
+	// TODO: sort by max fitness, kill off unfit species
+	// p.SortSpecies()
+	for j := len(p.Species) - 1; j >= 0; j -= 1 {
+		species := p.Species[j]
+		species.UpdateFitnessHistory()
+		log.Book(fmt.Sprintf("Local search, %d/%d...\n", j+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
+		species.LocalSearch()
+		if species.HasStagnated() {
+			log.Book(fmt.Sprintf("Stagnation, %d/%d...\n", j+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
+			p.Species = append(p.Species[:j], p.Species[j+1:]...)
+			continue
+		}
+		log.Book(fmt.Sprintf("Selection, %d/%d...\n", j+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
+		species.Selection()
+	}
+
+	// Need another loop so recombination happens after all stagnant species are culled
+	culledPopulationCount := float64(p.CountMembers())
+	for i, species := range p.Species {
+		log.Book(fmt.Sprintf("Recombination, %d/%d...\n", i+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
+		species.Recombination(culledPopulationCount)
+	}
+
+	log.Book("Separate into species...\n", log.DEBUG, log.DEBUG_EPOCH)
+	p.SeparateIntoSpecies()
+
+	massExtinct := true
+	for _, species := range p.Species {
+		if len(species.Members) > 0 {
+			massExtinct = false
+		}
+	}
+	if massExtinct {
+		panic("Science went too far")
+	}
+
+	log.Book("Champion fitness per species:\n", log.DEBUG, log.DEBUG_EPOCH)
+
+	champions := make([]GeneticCode, len(p.Species))
+	fitnesses := make([]float64, len(p.Species))
+	for i, species := range p.Species {
+		champion := species.Champion()
+
+		champions[i] = champion.GeneticCode()
+		fitnesses[i] = p.FitnessOf(champion)
+
+		log.Book(fmt.Sprintf("species #%d/%d: f=%.2g\n%s\n", i+1, len(p.Species), fitnesses[i], champions[i].ToString()), log.DEBUG, log.DEBUG_EPOCH)
+	}
+
+	log.Break(log.NL, log.DEBUG, log.DEBUG_EPOCH)
+
+	return champions, fitnesses
 }
 
 ////
