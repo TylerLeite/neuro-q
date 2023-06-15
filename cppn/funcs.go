@@ -18,7 +18,7 @@ func Seed(s int64) {
 }
 
 func RandomFunc() (neat.ActivationFunction, string) {
-	const totalFunctions = 12
+	const totalFunctions = 14
 
 	p := randi() % totalFunctions
 	if p <= 0 {
@@ -43,8 +43,12 @@ func RandomFunc() (neat.ActivationFunction, string) {
 		return StepFunc, "Step function"
 	} else if p <= 9 {
 		return InversionFunc, "Negative"
+	} else if p <= 11 {
+		return ExponentiationFunc, "Exponentiation"
+	} else if p <= 12 {
+		return TetrationFunc, "Second Tetration"
 	} else {
-		return IdentityFunc, "Identity"
+		return neat.IdentityFunc, "Identity"
 	}
 }
 
@@ -88,6 +92,10 @@ func InversionFunc(x float64) float64 {
 	return -x
 }
 
-func IdentityFunc(x float64) float64 {
-	return x
+func ExponentiationFunc(x float64) float64 {
+	return math.Exp(x)
+}
+
+func TetrationFunc(x float64) float64 {
+	return math.Pow(x, x)
 }

@@ -29,14 +29,14 @@ type Population struct {
 	C3 float64
 }
 
-func NewPopulation(size int, seed Organism, fitnessFunction FitnessFunction) *Population {
+func NewPopulation(seed Organism, fitnessFunction FitnessFunction) *Population {
 	p := Population{
 		Species:   make([]*Species, 0),
-		Size:      size,
 		Seed:      seed,
 		FitnessOf: fitnessFunction,
 
 		// Default config values
+		Size:                   100,
 		CullingPercent:         0.5,
 		RecombinationPercent:   1,
 		MinimumEntropy:         0.5,
@@ -56,7 +56,7 @@ func (p *Population) Copy() *Population {
 
 	newPopulation.Species = make([]*Species, len(p.Species))
 	for i, v := range p.Species {
-		newPopulation.Species[i] = v.Copy()
+		newPopulation.Species[i] = v.Copy(newPopulation)
 	}
 
 	return newPopulation
@@ -95,11 +95,11 @@ func (p *Population) Members() []Organism {
 	return members
 }
 
-func (p *Population) CountMembers() uint {
-	var total uint
+func (p *Population) CountMembers() int {
+	var total int
 
 	for _, species := range p.Species {
-		total += uint(len(species.Members))
+		total += len(species.Members)
 	}
 
 	return total
@@ -171,10 +171,7 @@ func (p *Population) SeparateIntoSpecies() *Population {
 }
 
 func (p *Population) SortSpecies() []*Species {
-	sortedCopy := make([]*Species, len(p.Species))
-	copy(sortedCopy, p.Species)
-
-	sortable := SortableSpecies(sortedCopy)
+	sortable := SortableSpecies(p.Species)
 	sort.Sort(sortable)
 
 	return []*Species(sortable)
@@ -196,6 +193,7 @@ func (s SortableSpecies) Len() int {
 
 // Want to sort in descending order, so less + greater are swapped
 func (s SortableSpecies) Less(i, j int) bool {
+	// Could also use average fitness instead of max fitness. Math is on the NEAT homepage
 	s1MaxFitness := s[i].Population.FitnessOf(s[i].Champion())
 	s2MaxFitness := s[j].Population.FitnessOf(s[j].Champion())
 	return s1MaxFitness > s2MaxFitness

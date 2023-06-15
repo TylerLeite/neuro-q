@@ -198,7 +198,7 @@ func TestEvolution(t *testing.T) {
 
 	seed := Organism(organism)
 
-	p1 := NewPopulation(100, seed, StringOrganismFitness)
+	p1 := NewPopulation(seed, StringOrganismFitness)
 	p1.CullingPercent = 0.5
 	p1.RecombinationPercent = 1
 	p1.MinimumEntropy = 0.35
@@ -211,7 +211,11 @@ func TestEvolution(t *testing.T) {
 		for _, species := range p2.Species {
 			species.LocalSearch()
 			species.Selection()
-			species.Recombination()
+		}
+
+		culledPopulationCount := float64(p2.CountMembers())
+		for _, species := range p2.Species {
+			species.Recombination(culledPopulationCount)
 		}
 
 		p1 = p2

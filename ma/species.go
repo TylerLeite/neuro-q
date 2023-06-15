@@ -60,11 +60,12 @@ func (s *Species) ToString() string {
 	return out
 }
 
-func (s *Species) Copy() *Species {
+func (s *Species) Copy(to *Population) *Species {
 	newSpecies := Species{
-		Population:     s.Population,
+		Population:     to,
 		Members:        make([]Organism, len(s.Members)),
 		FitnessHistory: make([]float64, len(s.FitnessHistory)),
+		dropoffAge:     s.dropoffAge,
 	}
 
 	for i, v := range s.Members {
@@ -147,15 +148,21 @@ func (s *Species) Selection() {
 }
 
 // Recombination (mating)
-func (s *Species) Recombination() {
+func (s *Species) Recombination(culledPopulationCount float64) {
 	// Store children in a new slice during recombination so they aren't chosen as parents
-	thisSpeciesPopulationPercent := float64(len(s.Members)) / float64(s.Population.CountMembers())
+	thisSpeciesPopulationPercent := float64(len(s.Members)) / culledPopulationCount
 	speciesTargetSize := int(math.Round(float64(s.Population.Size) * thisSpeciesPopulationPercent))
-	numberToRecombine := int(math.Round(float64(speciesTargetSize-len(s.Members)) * s.Population.RecombinationPercent))
-	numberToMutate := speciesTargetSize - numberToRecombine - len(s.Members)
-	children := make([]Organism, numberToRecombine)
-	clones := make([]Organism, numberToMutate)
+	numberToRecombine := int(math.Round(float64(speciesTargetSize) * s.Population.RecombinationPercent))
+	numberToMutate := speciesTargetSize - numberToRecombine
 
+	// Make room for last generation's champion
+	if numberToRecombine > numberToMutate {
+		numberToRecombine -= 1
+	} else {
+		numberToMutate -= 1
+	}
+
+	children := make([]Organism, numberToRecombine)
 	for i := 0; i < numberToRecombine; i += 1 {
 		var child Organism
 		r1 := rand.Intn(len(s.Members))
@@ -178,12 +185,16 @@ func (s *Species) Recombination() {
 		children[i] = child
 	}
 
+	clones := make([]Organism, numberToMutate)
 	for i := 0; i < numberToMutate; i += 1 {
 		r := rand.Intn(len(s.Members))
 		clone := s.Members[r].RandomNeighbor()
 		clones[i] = clone
 	}
 
+	champion := s.Champion()
+
+	s.Members = []Organism{champion}
 	s.Members = append(s.Members, children...)
 	s.Members = append(s.Members, clones...)
 }
@@ -211,6 +222,9 @@ func (s *Species) HasConverged() bool {
 	return ratio < s.Population.MinimumEntropy
 }
 
+// TODO: config
+const epsilon = 0.01
+
 func (s *Species) HasStagnated() bool {
 	age := len(s.FitnessHistory)
 
@@ -220,8 +234,8 @@ func (s *Species) HasStagnated() bool {
 	}
 
 	// If there has been a fitness increase anywhere in the last 15 generations, the species has not stagnated
-	for i := age - 1; i < age-s.dropoffAge; i -= 1 {
-		if s.FitnessHistory[i] > s.FitnessHistory[i-1] {
+	for i := age - 1; i > age-s.dropoffAge; i -= 1 {
+		if s.FitnessHistory[i] > s.FitnessHistory[i-1]+epsilon {
 			return false
 		}
 	}

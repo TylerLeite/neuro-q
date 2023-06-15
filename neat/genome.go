@@ -514,5 +514,5 @@ func (g *Genome) SortConnections() {
 }
 
 func RandomWeight() float64 {
-	return rand.Float64()*10 - 5
+	return rand.Float64()*30 - 15
 }

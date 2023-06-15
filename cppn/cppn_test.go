@@ -50,12 +50,12 @@ func Activate(inputs []float64, sensors, outputs []*neat.Node, allNodes []*neat.
 }
 
 func TestKnown(t *testing.T) {
-	xIn := neat.NewNode(IdentityFunc, neat.SensorNode)
-	yIn := neat.NewNode(IdentityFunc, neat.SensorNode)
+	xIn := neat.NewNode(neat.IdentityFunc, neat.SensorNode)
+	yIn := neat.NewNode(neat.IdentityFunc, neat.SensorNode)
 
-	rOut := neat.NewNode(IdentityFunc, neat.OutputNode)
-	gOut := neat.NewNode(IdentityFunc, neat.OutputNode)
-	bOut := neat.NewNode(IdentityFunc, neat.OutputNode)
+	rOut := neat.NewNode(neat.IdentityFunc, neat.OutputNode)
+	gOut := neat.NewNode(neat.IdentityFunc, neat.OutputNode)
+	bOut := neat.NewNode(neat.IdentityFunc, neat.OutputNode)
 
 	xIn.AddChild(rOut)
 	yIn.AddChild(gOut)
@@ -159,8 +159,8 @@ func TestGeneration(t *testing.T) {
 
 	allNodes := make([]*neat.Node, 0)
 
-	xIn := neat.NewNode(IdentityFunc, neat.SensorNode)
-	yIn := neat.NewNode(IdentityFunc, neat.SensorNode)
+	xIn := neat.NewNode(neat.IdentityFunc, neat.SensorNode)
+	yIn := neat.NewNode(neat.IdentityFunc, neat.SensorNode)
 
 	allNodes = append(allNodes, xIn)
 	allNodes = append(allNodes, yIn)

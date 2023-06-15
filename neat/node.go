@@ -16,10 +16,6 @@ func SigmoidFunc(x float64) float64 {
 	return 1 / (1 + math.Exp(-4.9*x))
 }
 
-func SquareFunc(x float64) float64 {
-	return x * x
-}
-
 const (
 	Unactivated ActivationState = iota
 	InActivation

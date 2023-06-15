@@ -217,7 +217,7 @@ func TestEvolution(t *testing.T) {
 	seedGenome := NewGenome(2, 1, true)
 	seedNetwork := NewNetwork(seedGenome, nil)
 
-	p := ma.NewPopulation(100, ma.Organism(seedNetwork), NeatFitness)
+	p := ma.NewPopulation(ma.Organism(seedNetwork), NeatFitness)
 	seedNetwork.Population = p
 
 	p.DistanceThreshold = 2
@@ -241,6 +241,11 @@ func TestEvolution(t *testing.T) {
 	i := 0
 	for !fullyVerified {
 		i += 1
+		if i > G {
+			fmt.Println("Reached generation limit")
+			break
+		}
+
 		fmt.Printf("New generation, %d/%d\n", i+1, G)
 
 		speciesLengths := make([]int, len(p.Species))
@@ -250,17 +255,46 @@ func TestEvolution(t *testing.T) {
 		fmt.Printf("%d species, lengths: %v\n", len(p.Species), speciesLengths)
 
 		p2 := p.Copy()
-		for j, species := range p2.Species {
+		// TODO: sort by max fitness, kill off unfit species
+		// p2.SortSpecies()
+		for j := len(p2.Species) - 1; j >= 0; j -= 1 {
+			species := p2.Species[j]
+			species.UpdateFitnessHistory()
 			fmt.Printf("Local search, %d/%d...\n", j+1, len(p2.Species))
 			species.LocalSearch()
+			if species.HasStagnated() {
+				fmt.Printf("Stagnation, %d/%d...\n", j+1, len(p2.Species))
+				p2.Species = append(p2.Species[:j], p2.Species[j+1:]...)
+				continue
+			}
 			fmt.Printf("Selection, %d/%d...\n", j+1, len(p2.Species))
 			species.Selection()
+		}
+
+		// Need another loop so recombination happens after all stagnant species are culled
+		culledPopulationCount := float64(p2.CountMembers())
+		for j, species := range p2.Species {
 			fmt.Printf("Recombination, %d/%d...\n", j+1, len(p2.Species))
-			species.Recombination()
+			species.Recombination(culledPopulationCount)
 		}
 
 		fmt.Printf("Separate into species, %d/%d..\n", i+1, G)
 		p = p2.SeparateIntoSpecies()
+
+		massExtinct := true
+		for _, species := range p2.Species {
+			if len(species.Members) > 0 {
+				massExtinct = false
+			}
+
+			maxFitnessHistory = maxFitnessHistory[:i]
+			for j, fitness := range maxFitnessHistory {
+				fmt.Printf("Generation %d: %g\n", j+1, fitness)
+			}
+		}
+		if massExtinct {
+			panic("Science went too far")
+		}
 
 		maxFitnessThisGeneration := float64(0)
 		fmt.Println("Champion fitness per species:")
@@ -277,22 +311,26 @@ func TestEvolution(t *testing.T) {
 				maxFitnessThisGeneration = championFitness
 			}
 
-			if NeatVerify(championNetwork) == 4 {
+			correctAnswers := NeatVerify(championNetwork)
+			if correctAnswers == 4 {
 				fullyVerified = true
+			} else {
+				fmt.Printf("%d correct answers\n", correctAnswers)
 			}
 		}
 
-		maxFitnessHistory[i] = maxFitnessThisGeneration
-		fmt.Println()
-
-		if i >= G {
-			fmt.Println("Reached generation limit")
-			break
+		if i > 0 {
+			maxFitnessHistory[i-1] = maxFitnessThisGeneration
 		}
+		fmt.Println()
+	}
+
+	if fullyVerified {
+		fmt.Println("Found a fully verified network!")
 	}
 
 	fmt.Println("Fitness history:")
 	for i, fitness := range maxFitnessHistory {
-		fmt.Printf("Generation %d: %.4f\n", i+1, fitness)
+		fmt.Printf("Generation %d: %g\n", i+1, fitness)
 	}
 }
