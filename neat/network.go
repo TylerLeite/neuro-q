@@ -187,6 +187,7 @@ func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 			// }
 
 			// Unless both genes are disabled, enable this one
+			// TODO: figure out why this is necessary
 			if !g1.Connections[i1].Enabled && !g2.Connections[i2].Enabled {
 				g.Connections[len(g.Connections)-1].Enabled = false
 			} else {

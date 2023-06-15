@@ -172,3 +172,8 @@ func (n *Node) Reset() {
 	n.value = math.NaN()
 	n.visited = false
 }
+
+func (n *Node) Deactivate() {
+	Log(fmt.Sprintf("Deactivating %s\n", n.Label), DEBUG, DEBUG_RESET)
+	n.visited = false
+}

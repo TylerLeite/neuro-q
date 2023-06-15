@@ -4,22 +4,64 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"math"
 	"os"
 	"testing"
 
 	"github.com/TylerLeite/neuro-q/neat"
 )
 
-func TestKnown(t *testing.T) {
-	xIn := neat.NewNode(IdentityFunc)
-	yIn := neat.NewNode(IdentityFunc)
+func Activate(inputs []float64, sensors, outputs []*neat.Node, allNodes []*neat.Node) error {
+	for _, node := range allNodes {
+		node.Reset()
+	}
 
-	rOut := neat.NewNode(IdentityFunc)
-	gOut := neat.NewNode(IdentityFunc)
-	bOut := neat.NewNode(IdentityFunc)
+	done := false
+	sanity := 100
+	for !done && sanity > 0 {
+		for _, node := range allNodes {
+			node.Deactivate()
+		}
+
+		for i, in := range sensors {
+			in.SetDefaultValue(inputs[i])
+			in.ForwardPropogate()
+
+			// Want to be able to revisit nodes once you have a new input
+			for _, node := range allNodes {
+				node.Deactivate()
+			}
+		}
+
+		done = true
+		for _, out := range outputs {
+			if math.IsNaN(out.Value()) {
+				done = false
+			}
+		}
+		sanity -= 1
+	}
+
+	if sanity <= 0 {
+		panic("Canceling activation, too many loops in the network")
+	}
+
+	return nil
+}
+
+func TestKnown(t *testing.T) {
+	xIn := neat.NewNode(IdentityFunc, neat.SensorNode)
+	yIn := neat.NewNode(IdentityFunc, neat.SensorNode)
+
+	rOut := neat.NewNode(IdentityFunc, neat.OutputNode)
+	gOut := neat.NewNode(IdentityFunc, neat.OutputNode)
+	bOut := neat.NewNode(IdentityFunc, neat.OutputNode)
 
 	xIn.AddChild(rOut)
 	yIn.AddChild(gOut)
+
+	xIn.AddChild(bOut)
+	yIn.AddChild(bOut)
 
 	const (
 		w = 160
@@ -30,21 +72,16 @@ func TestKnown(t *testing.T) {
 
 	for x := float64(0); x < w; x += 1 {
 		for y := float64(0); y < h; y += 1 {
-			xIn.SetDefaultValue(x / w)
-			yIn.SetDefaultValue(y / h)
-
-			xIn.ForwardPropogate()
-			yIn.ForwardPropogate()
+			Activate(
+				[]float64{x / w, y / h},
+				[]*neat.Node{xIn, yIn},
+				[]*neat.Node{rOut, gOut, bOut},
+				[]*neat.Node{xIn, yIn, rOut, gOut, bOut},
+			)
 
 			r := 255 * rOut.Value()
 			g := 255 * gOut.Value()
 			b := 255 * bOut.Value()
-
-			xIn.Reset()
-			yIn.Reset()
-			rOut.Reset()
-			gOut.Reset()
-			bOut.Reset()
 
 			img.Set(int(x), int(y), color.RGBA{uint8(r), uint8(g), uint8(b), 0xff})
 		}
@@ -59,15 +96,15 @@ func TestRandom(t *testing.T) {
 
 	f01, _ := RandomFunc()
 	f02, _ := RandomFunc()
-	xIn := neat.NewNode(f01)
-	yIn := neat.NewNode(f02)
+	xIn := neat.NewNode(f01, neat.SensorNode)
+	yIn := neat.NewNode(f02, neat.SensorNode)
 
 	f11, _ := RandomFunc()
 	f12, _ := RandomFunc()
 	f13, _ := RandomFunc()
-	inner1 := neat.NewNode(f11)
-	inner2 := neat.NewNode(f12)
-	inner3 := neat.NewNode(f13)
+	inner1 := neat.NewNode(f11, neat.HiddenNode)
+	inner2 := neat.NewNode(f12, neat.HiddenNode)
+	inner3 := neat.NewNode(f13, neat.HiddenNode)
 
 	xIn.AddChild(inner1)
 	yIn.AddChild(inner2)
@@ -78,9 +115,9 @@ func TestRandom(t *testing.T) {
 	f21, _ := RandomFunc()
 	f22, _ := RandomFunc()
 	f23, _ := RandomFunc()
-	rOut := neat.NewNode(f21)
-	gOut := neat.NewNode(f22)
-	bOut := neat.NewNode(f23)
+	rOut := neat.NewNode(f21, neat.OutputNode)
+	gOut := neat.NewNode(f22, neat.OutputNode)
+	bOut := neat.NewNode(f23, neat.OutputNode)
 
 	inner1.AddChild(rOut)
 	inner2.AddChild(gOut)
@@ -95,21 +132,16 @@ func TestRandom(t *testing.T) {
 
 	for x := float64(0); x < w; x += 1 {
 		for y := float64(0); y < h; y += 1 {
-			xIn.SetDefaultValue(x / w)
-			yIn.SetDefaultValue(y / h)
-
-			xIn.ForwardPropogate()
-			yIn.ForwardPropogate()
+			Activate(
+				[]float64{x / w, y / h},
+				[]*neat.Node{xIn, yIn},
+				[]*neat.Node{rOut, gOut, bOut},
+				[]*neat.Node{xIn, yIn, inner1, inner2, inner3, rOut, gOut, bOut},
+			)
 
 			r := 255 * rOut.Value()
 			g := 255 * gOut.Value()
 			b := 255 * bOut.Value()
-
-			xIn.Reset()
-			yIn.Reset()
-			rOut.Reset()
-			gOut.Reset()
-			bOut.Reset()
 
 			img.Set(int(x), int(y), color.RGBA{uint8(r), uint8(g), uint8(b), 0xff})
 		}
@@ -125,8 +157,13 @@ func TestRandom(t *testing.T) {
 func TestGeneration(t *testing.T) {
 	Seed(2)
 
-	xIn := neat.NewNode(IdentityFunc)
-	yIn := neat.NewNode(IdentityFunc)
+	allNodes := make([]*neat.Node, 0)
+
+	xIn := neat.NewNode(IdentityFunc, neat.SensorNode)
+	yIn := neat.NewNode(IdentityFunc, neat.SensorNode)
+
+	allNodes = append(allNodes, xIn)
+	allNodes = append(allNodes, yIn)
 
 	const layerNum = 6
 	layers := make([][]*neat.Node, layerNum)
@@ -145,8 +182,9 @@ func TestGeneration(t *testing.T) {
 
 		for nodeIdx := 0; nodeIdx < nodesInLayer; nodeIdx += 1 {
 			fn, _ := RandomFunc()
-			node := neat.NewNode(fn)
+			node := neat.NewNode(fn, neat.HiddenNode)
 			layers[layerIdx][nodeIdx] = node
+			allNodes = append(allNodes, node)
 
 			// Try to find a parent for this new node in the previous layer
 			// If you don't go up a layer, and so on
@@ -183,9 +221,13 @@ func TestGeneration(t *testing.T) {
 		}
 	}
 
-	rOut := neat.NewNode(AbsFunc)
-	gOut := neat.NewNode(AbsFunc)
-	bOut := neat.NewNode(AbsFunc)
+	rOut := neat.NewNode(AbsFunc, neat.OutputNode)
+	gOut := neat.NewNode(AbsFunc, neat.OutputNode)
+	bOut := neat.NewNode(AbsFunc, neat.OutputNode)
+
+	allNodes = append(allNodes, rOut)
+	allNodes = append(allNodes, gOut)
+	allNodes = append(allNodes, bOut)
 
 	lastLayerIndices := []int{4, 2, 5, 3, 0, 1}
 	// To be random instead:
@@ -237,11 +279,13 @@ func TestGeneration(t *testing.T) {
 
 	for x := float64(0); x < w; x += 1 {
 		for y := float64(0); y < h; y += 1 {
-			xIn.SetDefaultValue(x / w)
-			yIn.SetDefaultValue(y / h)
 
-			xIn.ForwardPropogate()
-			yIn.ForwardPropogate()
+			Activate(
+				[]float64{x / w, y / h},
+				[]*neat.Node{xIn, yIn},
+				[]*neat.Node{rOut, gOut, bOut},
+				allNodes,
+			)
 
 			r := 255 * rOut.Value()
 			g := 255 * gOut.Value()
