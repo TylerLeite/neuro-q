@@ -3,6 +3,7 @@ package neat
 import (
 	"bytes"
 	_ "embed"
+	"fmt"
 	"image"
 	"image/color"
 	"math"
@@ -87,24 +88,41 @@ func drawEdge(x0, y0, x1, y1 int, label string, weight float64, font image.Image
 	x := float64(x0)
 	y := float64(y0)
 
-	slope := float64(y1-y0) / math.Abs(float64(x1-x0))
+	slope := math.Abs(float64(y1-y0) / float64(x1-x0))
 
 	dx := float64(1)
-	if x0 > x1 {
-		dx = float64(-1)
+	dy := float64(1)
+
+	if slope < 1 {
+		dy = slope
+	} else {
+		dx = 1 / slope // 1/+Inf = 0
 	}
 
+	if y1 < y0 {
+		dy *= -1
+	}
+
+	if x1 < x0 {
+		dx *= -1
+	}
+
+	Log(fmt.Sprintf("(%d, %d) -> (%d, %d) | slope: %.2g, dx: %.2g, dy:%.2g\n", x0, y0, x1, y1, slope, dx, dy), DEBUG, DEBUG_DRAW)
+
+	// Long-winded way of checking if the cursor is over the end point
 	for {
 		x += dx
-		y += slope
+		y += dy
 
-		if dx > 0 && x > float64(x1) || dx < 0 && x < float64(x1) {
+		xReached := dx <= 0 && x < float64(x1) || dx >= 0 && x > float64(x1)
+		yReached := dy <= 0 && y < float64(y1) || dy >= 0 && y > float64(y1)
+
+		if xReached && yReached {
+			Log(fmt.Sprintf("Cursor reached (%d, %d). x=%.2g, y=%.2g\n", x1, y1, x, y), DEBUG, DEBUG_DRAW)
 			break
 		}
-		if slope > 0 && y > float64(y1) || slope < 0 && y < float64(y1) {
-			break
-		}
 
+		// Yellow = negative weights, Purple = positive
 		g := float64(math.MaxUint8) * weight
 		b := g
 
@@ -118,7 +136,10 @@ func drawEdge(x0, y0, x1, y1 int, label string, weight float64, font image.Image
 			b = 0
 		}
 
-		canvas.Set(int(math.Round(x)), int(math.Round(y)), color.RGBA{R: 128, G: uint8(g), B: uint8(b), A: math.MaxUint8})
+		xPixel := int(math.Round(x))
+		yPixel := int(math.Round(y))
+		canvas.Set(xPixel, yPixel, color.RGBA{R: 128, G: uint8(g), B: uint8(b), A: math.MaxUint8})
+		Log(fmt.Sprintf("Drawing at (%d, %d), color (128,%d,%d)\n", xPixel, yPixel, uint8(g), uint8(b)), DEBUG, DEBUG_DRAW)
 	}
 }
 
@@ -137,6 +158,13 @@ func (n *Network) SeparateIntoLayers() [][]*Node {
 		inputLayer = append(inputLayer, sensorNode)
 	}
 	layers = append(layers, inputLayer)
+
+	outputLayer := make([]*Node, 0)
+	for _, nodeId := range n.DNA.OutputNodes {
+		outputNode := n.Nodes[nodeId]
+		visited[outputNode] = true
+		outputLayer = append(outputLayer, outputNode)
+	}
 
 	index := 0
 	for {
@@ -163,6 +191,7 @@ func (n *Network) SeparateIntoLayers() [][]*Node {
 		}
 	}
 
+	layers = append(layers, outputLayer)
 	return layers
 }
 

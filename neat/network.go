@@ -1,7 +1,9 @@
 package neat
 
 import (
+	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 
 	"github.com/TylerLeite/neuro-q/ma"
@@ -74,13 +76,40 @@ func (n *Network) RandomNeighbor() ma.Organism {
 
 	r := rand.Float64()
 	mutation := MutationAddConnection
-	if r < 0.1 {
+	if r < 0.8 {
 		mutation = MutationMutateWeight
-	} else if r < 0.3 {
+	} else if r < 0.85 {
 		mutation = MutationAddNode
 	}
 
 	neighbor.GeneticCode().Mutate(mutation, args)
+
+	// Check validity
+	if DEBUG_MUTATION {
+		neighbor.Compile()
+		network := neighbor.(*Network)
+
+		// Check for disconnected nodes
+		foundErrors := false
+		for _, node := range network.Nodes {
+			if len(node.In) == 0 && len(node.Out) == 0 {
+				foundErrors = true
+				break
+			}
+		}
+
+		for _, edge := range network.Edges {
+			if edge.In == edge.Out {
+				foundErrors = true
+			}
+		}
+
+		if foundErrors {
+			Log(fmt.Sprintf("vvvvvvvvvv\n%s\n %s\n", network.ToString(), neighbor.GeneticCode().ToString()), DEBUG_MUTATION)
+			panic("Found errors in RandomNeighbor()")
+		}
+	}
+
 	return neighbor
 }
 
@@ -96,7 +125,12 @@ func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 
 	// Need to know which parent is more fit for inheriting excess and disjoint genes
 	moreFitParent := n
-	if n.Population.FitnessOf(n) < n2.Population.FitnessOf(n2) {
+
+	nFitness := n.Population.FitnessOf(n)
+	n2Fitness := n2.Population.FitnessOf(n2)
+	if nFitness < n2Fitness {
+		moreFitParent = n2
+	} else if nFitness == n2Fitness && len(n2.DNA.Connections) < len(n.DNA.Connections) {
 		moreFitParent = n2
 	}
 
@@ -124,14 +158,14 @@ func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 			if n2 == moreFitParent {
 				// This loop will be empty if i2 >= len(g2.Connection)
 				for ; i2 < len(g2.Connections); i2 += 1 {
-					g.Connections = append(g.Connections, g2.Connections[i2])
+					g.Connections = append(g.Connections, g2.Connections[i2].Copy())
 				}
 			}
 			break
 		} else if i2 >= len(g2.Connections) {
 			if n == moreFitParent {
 				for ; i1 < len(g1.Connections); i1 += 1 {
-					g.Connections = append(g.Connections, g1.Connections[i1])
+					g.Connections = append(g.Connections, g1.Connections[i1].Copy())
 				}
 			}
 			break
@@ -140,9 +174,9 @@ func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 		if g1.Connections[i1].InnovationNumber == g2.Connections[i2].InnovationNumber {
 			// Inherit a gene randomly when there is an innovation number  match
 			if rand.Intn(2) == 0 {
-				g.Connections = append(g.Connections, g1.Connections[i1])
+				g.Connections = append(g.Connections, g1.Connections[i1].Copy())
 			} else {
-				g.Connections = append(g.Connections, g2.Connections[i2])
+				g.Connections = append(g.Connections, g2.Connections[i2].Copy())
 			}
 
 			// TODO: check gene disable safety
@@ -152,18 +186,25 @@ func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 			// 	g.Connections[len(g.Connections)-1].Enabled = false
 			// }
 
+			// Unless both genes are disabled, enable this one
+			if !g1.Connections[i1].Enabled && !g2.Connections[i2].Enabled {
+				g.Connections[len(g.Connections)-1].Enabled = false
+			} else {
+				g.Connections[len(g.Connections)-1].Enabled = true
+			}
+
 			i1 += 1
 			i2 += 1
 		} else if g1.Connections[i1].InnovationNumber < g2.Connections[i2].InnovationNumber {
 			// Inherit disjoint genes from the more fit parent
 			if n == moreFitParent {
-				g.Connections = append(g.Connections, g1.Connections[i1])
+				g.Connections = append(g.Connections, g1.Connections[i1].Copy())
 			}
 
 			i1 += 1
 		} else if g1.Connections[i1].InnovationNumber > g2.Connections[i2].InnovationNumber {
 			if n2 == moreFitParent {
-				g.Connections = append(g.Connections, g2.Connections[i2])
+				g.Connections = append(g.Connections, g2.Connections[i2].Copy())
 			}
 
 			i2 += 1
@@ -183,6 +224,7 @@ func (n *Network) LoadGeneticCode(dna ma.GeneticCode) {
 }
 
 // TODO: check for errors e.g. loops in feed-forward networks, connections between nonexistant nodes, etc.
+// TODO: potential bug if all connections are removed out of a node (e.g. through gene disable). should think if this is possible. may be the reason to have node genes
 func (n *Network) Compile() error {
 	// No need to recompile, genome should never change
 	if n.isCompiled {
@@ -195,35 +237,53 @@ func (n *Network) Compile() error {
 	// Create all nodes
 	nNodes := len(n.DNA.SensorNodes) + len(n.DNA.HiddenNodes) + len(n.DNA.OutputNodes)
 	n.Nodes = make([]*Node, nNodes)
-	nodeMap := make([]*Node, nNodes)
+
+	Log(fmt.Sprintf("Allocating space for %d + %d + %d = %d nodes.\n", len(n.DNA.SensorNodes), len(n.DNA.HiddenNodes), len(n.DNA.OutputNodes), len(n.Nodes)), DEBUG, DEBUG_COMPILE)
 
 	// TODO: support for other activation functions
 	// Also there is probably a slightly cleaner way of doing this than 3 nearly identical loops but oh well
 	for _, v := range n.DNA.SensorNodes {
-		nodeMap[v] = NewNode(IdentityFunc)
-		nodeMap[v].Label = fmt.Sprintf("%d", v)
-		n.Nodes[v] = nodeMap[v]
+		if v == 0 && n.DNA.UsesBias {
+			n.Nodes[v] = NewNode(IdentityFunc, BiasNode)
+		} else {
+			n.Nodes[v] = NewNode(IdentityFunc, SensorNode)
+		}
+		n.Nodes[v].Label = fmt.Sprintf("%d", v)
 	}
 
 	for _, v := range n.DNA.HiddenNodes {
-		nodeMap[v] = NewNode(SigmoidFunc)
-		nodeMap[v].Label = fmt.Sprintf("%d", v)
-		n.Nodes[v] = nodeMap[v]
+		n.Nodes[v] = NewNode(SigmoidFunc, HiddenNode)
+		n.Nodes[v].Label = fmt.Sprintf("%d", v)
 	}
 
 	for _, v := range n.DNA.OutputNodes {
-		nodeMap[v] = NewNode(SigmoidFunc) // TODO: is this the best activation function for output?
-		nodeMap[v].Label = fmt.Sprintf("%d", v)
-		n.Nodes[v] = nodeMap[v]
+		n.Nodes[v] = NewNode(SigmoidFunc, OutputNode) // TODO: is this the best activation function for output?
+		n.Nodes[v].Label = fmt.Sprintf("%d", v)
+	}
+
+	if DEBUG_COMPILE {
+		for i, n := range n.Nodes {
+			if n == nil || fmt.Sprintf("%d", i) != n.Label {
+				Log(fmt.Sprintf("%s\n", n.ToString()), DEBUG, DEBUG_COMPILE)
+				panic("Nodes not in order while compiling!")
+			}
+		}
 	}
 
 	// Create all edges
 	for _, v := range n.DNA.Connections {
-		newEdge := nodeMap[v.InNode].AddChild(nodeMap[v.OutNode])
-		newEdge.Label = fmt.Sprintf("%d", v.InnovationNumber)
+		if !v.Enabled {
+			Log(fmt.Sprintf("Skipping disabled connection from %d to %d\n", v.InNode, v.OutNode), DEBUG, DEBUG_COMPILE)
+			continue
+		}
+		Log(fmt.Sprintf("Adding connection from %d to %d\n", v.InNode, v.OutNode), DEBUG, DEBUG_COMPILE)
+		newEdge := n.Nodes[v.InNode].AddChild(n.Nodes[v.OutNode])
+		newEdge.Label = fmt.Sprintf("%d (%s)", v.InnovationNumber, MutationTypeToString[v.Origin])
 		newEdge.Weight = v.Weight
 		n.Edges = append(n.Edges, newEdge)
 	}
+
+	// TODO: sort edges?
 
 	n.isCompiled = true
 	return nil
@@ -231,4 +291,46 @@ func (n *Network) Compile() error {
 
 func (n *Network) IsCompiled() bool {
 	return n.isCompiled
+}
+
+// TODO: This is ActivateRecurrent, also write ActivateFeedForward
+func (n *Network) Activate(inputs []float64, sensors, outputs []*Node) error {
+	for _, node := range n.Nodes {
+		node.Reset()
+	}
+
+	done := false
+	sanity := 100
+	for !done && sanity > 0 {
+		for _, node := range n.Nodes {
+			node.visited = false
+		}
+
+		for i, in := range sensors {
+			in.SetDefaultValue(inputs[i])
+			Log(fmt.Sprintf("Sensor %s prop\n", in.Label), DEBUG, DEBUG_PROPAGATION)
+			in.ForwardPropogate()
+
+			// Want to be able to revisit nodes once you have a new input
+			for _, node := range n.Nodes {
+				node.visited = false
+			}
+		}
+
+		done = true
+		for _, out := range outputs {
+			if math.IsNaN(out.Value()) {
+				done = false
+			}
+		}
+		sanity -= 1
+	}
+
+	Log(fmt.Sprintf("\nProp trace\n%s\nGenome:\n%s\n%s\n", n.ToString(), n.DNA.NodesToString(), n.DNA.ToString()), DEBUG, DEBUG_PROPAGATION)
+
+	if sanity <= 0 {
+		return errors.New("canceling activation, too many loops in the network")
+	}
+
+	return nil
 }

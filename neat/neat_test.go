@@ -40,9 +40,24 @@ func NeatFitness(o ma.Organism) float64 {
 	n.Compile()
 
 	// Test 1: XOR
-	bias := n.Nodes[n.DNA.SensorNodes[0]]
-	inX := n.Nodes[n.DNA.SensorNodes[1]]
-	inY := n.Nodes[n.DNA.SensorNodes[2]]
+	var (
+		bias *Node
+		inX  *Node
+		inY  *Node
+	)
+
+	for _, nodeI := range n.DNA.SensorNodes {
+		node := n.Nodes[nodeI]
+		if node.Label == "0" {
+			bias = node
+		} else if node.Label == "1" {
+			inX = node
+		} else {
+			inY = node
+		}
+	}
+
+	Log(fmt.Sprintf("Bias label: %s, X: %s, Y: %s\n", bias.Label, inX.Label, inY.Label), DEBUG, DEBUG_PROPAGATION)
 
 	out := n.Nodes[n.DNA.OutputNodes[0]]
 
@@ -50,26 +65,78 @@ func NeatFitness(o ma.Organism) float64 {
 
 	for x := 0; x < 2; x += 1 {
 		for y := 0; y < 2; y += 1 {
-			out.Reset()
-			bias.SetDefaultValue(float64(1))
-			inX.SetDefaultValue(float64(x))
-			inY.SetDefaultValue(float64(y))
-
-			bias.ForwardPropogate()
-			inX.ForwardPropogate()
-			inY.ForwardPropogate()
+			inputValues := []float64{1, float64(x), float64(y)}
+			n.Activate(inputValues, []*Node{bias, inX, inY}, []*Node{out})
 
 			result := out.Value()
-			fmt.Println(result)
+			if math.IsNaN(result) {
+				Log(n.ToString(), DEBUG)
+				panic("NaN network")
+			}
+			Log(fmt.Sprintf("Inputs were: %v and output was: %0.2g\n", inputValues, out.value), DEBUG, DEBUG_PROPAGATION)
+
 			target := float64(xor(x, y))
 
-			fitness += math.Abs(result - target)
+			fitness += (result - target) * (result - target)
 		}
 	}
 
+	// sizeScore := 1 / float64(len(n.Edges))
+
 	// Take reciprocal of square, want maximum value at minimum difference between result + target
-	fitness = 16 / (1 + fitness*fitness)
+	fitness = 16 / (1 + fitness) // - sizeScore
 	return fitness
+}
+
+func NeatVerify(o ma.Organism) int {
+	n := o.(*Network)
+	n.Compile()
+
+	// Test 1: XOR
+	var (
+		bias *Node
+		inX  *Node
+		inY  *Node
+	)
+
+	for _, nodeI := range n.DNA.SensorNodes {
+		node := n.Nodes[nodeI]
+		if node.Label == "0" {
+			bias = node
+		} else if node.Label == "1" {
+			inX = node
+		} else {
+			inY = node
+		}
+	}
+
+	out := n.Nodes[n.DNA.OutputNodes[0]]
+	testsPassed := 0
+	for x := 0; x < 2; x += 1 {
+		for y := 0; y < 2; y += 1 {
+			inputValues := []float64{1, float64(x), float64(y)}
+			n.Activate(inputValues, []*Node{bias, inX, inY}, []*Node{out})
+
+			outValue := out.Value()
+			if math.IsNaN(outValue) {
+				Log(n.ToString(), DEBUG)
+				panic("NaN network")
+			}
+
+			target := xor(x, y)
+			result := 0
+			if outValue >= 0.5 {
+				result = 1
+			}
+
+			if result == target {
+				testsPassed += 1
+			}
+			Log(fmt.Sprintf("Inputs were: %v and output was: %dg\n", inputValues, result), DEBUG, DEBUG_PROPAGATION)
+		}
+	}
+
+	return testsPassed
 }
 
 func TestDraw(t *testing.T) {
@@ -106,10 +173,48 @@ func TestDraw(t *testing.T) {
 	network.Draw("test.bmp")
 }
 
+func TestXor(t *testing.T) {
+
+	var fitness float64
+	var seedGenome *Genome
+
+	manualWeights := []float64{
+		0.12891183580278853,
+		-0.6017346437838056,
+		-1.0789994134152487,
+		-0.758092908174699,
+		3.108815121480327,
+		2.010407441584877,
+		4.961511425606139,
+	}
+
+	seedGenome = &Genome{
+		SensorNodes: []uint{0, 1, 2},
+		OutputNodes: []uint{3},
+		HiddenNodes: []uint{4},
+		Connections: []*EdgeGene{
+			NewEdgeGene(0, 3, manualWeights[0], NoMutation),
+			NewEdgeGene(1, 3, manualWeights[1], NoMutation),
+			NewEdgeGene(2, 3, manualWeights[2], NoMutation),
+			NewEdgeGene(0, 4, manualWeights[3], NoMutation),
+			NewEdgeGene(1, 4, manualWeights[4], NoMutation),
+			NewEdgeGene(2, 4, manualWeights[5], NoMutation),
+			NewEdgeGene(4, 3, manualWeights[6], NoMutation),
+		},
+
+		UsesBias: true,
+	}
+	fmt.Println(seedGenome.ToString())
+
+	network := NewNetwork(seedGenome, nil)
+	fitness = NeatFitness(ma.Organism(network))
+	fmt.Printf("Fitness of manual xor solution: %.2g\n", fitness)
+}
+
 func TestEvolution(t *testing.T) {
 	ResetInnovationHistory()
 
-	seedGenome := NewGenome(3, 1)
+	seedGenome := NewGenome(2, 1, true)
 	seedNetwork := NewNetwork(seedGenome, nil)
 
 	p := ma.NewPopulation(100, ma.Organism(seedNetwork), NeatFitness)
@@ -129,9 +234,13 @@ func TestEvolution(t *testing.T) {
 	fmt.Printf("Separate into species...\n")
 	p = p.SeparateIntoSpecies()
 
-	// run for G generations
-	const G int = 50
-	for i := 0; i < G; i += 1 {
+	// run for at most G generations
+	const G int = 1000
+	maxFitnessHistory := make([]float64, G)
+	fullyVerified := false
+	i := 0
+	for !fullyVerified {
+		i += 1
 		fmt.Printf("New generation, %d/%d\n", i+1, G)
 
 		speciesLengths := make([]int, len(p.Species))
@@ -153,15 +262,37 @@ func TestEvolution(t *testing.T) {
 		fmt.Printf("Separate into species, %d/%d..\n", i+1, G)
 		p = p2.SeparateIntoSpecies()
 
+		maxFitnessThisGeneration := float64(0)
 		fmt.Println("Champion fitness per species:")
+
 		for j, species := range p2.Species {
 			champion := species.Champion()
 
+			championFitness := p2.FitnessOf(champion)
 			championNetwork := champion.(*Network)
-			// championNetwork.Draw(fmt.Sprintf("drawn/%d_%d.bmp", i, j))
-			fmt.Printf("species #%d/%d: f=%.2g\n%s\n", j+1, len(p2.Species), p2.FitnessOf(champion), championNetwork.ToString())
+			championNetwork.Draw(fmt.Sprintf("drawn/%d_%d.bmp", i, j))
+			fmt.Printf("species #%d/%d: f=%.2g\n%s\n%s\n", j+1, len(p2.Species), championFitness, championNetwork.DNA.ToString(), championNetwork.ToString())
+
+			if championFitness > maxFitnessThisGeneration {
+				maxFitnessThisGeneration = championFitness
+			}
+
+			if NeatVerify(championNetwork) == 4 {
+				fullyVerified = true
+			}
 		}
 
+		maxFitnessHistory[i] = maxFitnessThisGeneration
 		fmt.Println()
+
+		if i >= G {
+			fmt.Println("Reached generation limit")
+			break
+		}
+	}
+
+	fmt.Println("Fitness history:")
+	for i, fitness := range maxFitnessHistory {
+		fmt.Printf("Generation %d: %.4f\n", i+1, fitness)
 	}
 }

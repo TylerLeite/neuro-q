@@ -9,9 +9,13 @@ import (
 	"github.com/TylerLeite/neuro-q/ma"
 )
 
-// ma.GeneticCode is an interface into genomes
-// neat.Genome is a network definition, it implements ma.GeneticCode
-// cppn.Organism is an actual, usable network. It is compiled from a neat.Genome
+func flag2Int(n bool) int {
+	if n {
+		return 1
+	} else {
+		return 0
+	}
+}
 
 // TODO: node genes, will they always just work out if they go sensor -> output -> hidden?
 // TODO: bias flag for nodes
@@ -20,14 +24,17 @@ type Genome struct {
 	SensorNodes []uint
 	HiddenNodes []uint
 	OutputNodes []uint
+
+	UsesBias bool
 }
 
-func NewGenome(inNodes, outNodes int) *Genome {
+func NewGenome(inNodes, outNodes int, useBias bool) *Genome {
 	g := &Genome{
 		Connections: make([]*EdgeGene, 0),
-		SensorNodes: make([]uint, inNodes),
+		SensorNodes: make([]uint, inNodes+flag2Int(useBias)),
 		HiddenNodes: make([]uint, 0),
 		OutputNodes: make([]uint, outNodes),
+		UsesBias:    useBias,
 	}
 
 	g.Randomize()
@@ -40,6 +47,7 @@ func (g *Genome) Copy() ma.GeneticCode {
 		SensorNodes: make([]uint, len(g.SensorNodes)),
 		HiddenNodes: make([]uint, len(g.HiddenNodes)),
 		OutputNodes: make([]uint, len(g.OutputNodes)),
+		UsesBias:    g.UsesBias,
 	}
 
 	for i, v := range g.Connections {
@@ -87,6 +95,7 @@ func (g *Genome) Randomize() {
 	g.PopulateNodeSlices()
 }
 
+// TODO: More readable version, ToPretty -> remove spaces from this
 func (g *Genome) ToString() string {
 	edges := "["
 	for _, v := range g.Connections {
@@ -96,6 +105,29 @@ func (g *Genome) ToString() string {
 
 	// Shouldn't need to include nodes in the representation. That would be redundant considering nodes are generated based on edges
 	return edges
+}
+
+// TODO: bias nodes
+func (g *Genome) NodesToString() string {
+	nodes := "Sensor: ["
+	for _, v := range g.SensorNodes {
+		nodes += fmt.Sprintf("%d ", v)
+	}
+	nodes = nodes[:len(nodes)-1] + "]\n"
+
+	nodes += "Output: ["
+	for _, v := range g.OutputNodes {
+		nodes += fmt.Sprintf("%d ", v)
+	}
+	nodes = nodes[:len(nodes)-1] + "]\n"
+
+	nodes += "Hidden: ["
+	for _, v := range g.HiddenNodes {
+		nodes += fmt.Sprintf("%d ", v)
+	}
+	nodes = nodes[:len(nodes)-1] + "]\n"
+
+	return nodes
 }
 
 // NOTE: need to map innovation numbers within a generation to specific mutations
@@ -108,11 +140,27 @@ const (
 	MutationMutateWeight
 )
 
+var MutationTypeToString = map[ma.MutationType]string{
+	NoMutation:            "No Mutation",
+	MutationAddConnection: "Add Connection",
+	MutationAddNode:       "Add Node",
+	MutationMutateWeight:  "Mutate Weight",
+}
+
 func (g *Genome) ListMutations() map[string]ma.MutationType {
+	// Maybe just send MutationTypeToString?
 	m := make(map[string]ma.MutationType)
 	m["Add Connection"] = MutationAddConnection
 	m["Add Node"] = MutationAddNode
 	m["Mutate Weight"] = MutationMutateWeight
+	return m
+}
+
+func (g *Genome) MutationOdds() map[ma.MutationType]float64 {
+	m := make(map[ma.MutationType]float64)
+	m[MutationAddConnection] = 0.15
+	m[MutationAddNode] = 0.05
+	m[MutationMutateWeight] = 0.8
 	return m
 }
 
@@ -138,6 +186,44 @@ func (g *Genome) Mutate(typ ma.MutationType, args interface{}) {
 	}
 }
 
+func (g *Genome) checkForCycles(in, out int) bool {
+	// Check if this edge creates a cycle. If r1 is reachable from r2, then adding a connection from r1 -> r2 would make a cycle
+	queue := []*EdgeGene{}
+	visited := make(map[*EdgeGene]bool)
+
+	for _, edge := range g.Connections {
+		if edge.InNode == uint(out) {
+			if _, ok := visited[edge]; !ok {
+				queue = append(queue, edge)
+				visited[edge] = true
+			}
+		}
+	}
+
+	foundACycle := false
+	for len(queue) > 0 {
+		edge := queue[0]
+		outNode := edge.OutNode
+		if outNode == uint(in) {
+			foundACycle = true
+			Log(fmt.Sprintf("Found a cycle :/\n%s\n", g.ToString()), DEBUG, DEBUG_ADD_CONNECTION)
+			break
+		} else {
+			// TODO: so nested :(
+			for _, edge := range g.Connections {
+				if _, ok := visited[edge]; !ok && edge.InNode == uint(outNode) {
+					queue = append(queue, edge)
+					visited[edge] = true
+				}
+			}
+		}
+
+		queue = queue[1:]
+	}
+
+	return foundACycle
+}
+
 type AddConnectionError struct {
 	Msg string
 }
@@ -151,12 +237,12 @@ func (e *AddConnectionError) Error() string {
 	return e.Msg
 }
 
+// TODO: Make it so feedForward actually matters
 func (g *Genome) AddConnection(feedForward bool) error {
+	Log("Mutate add conection", DEBUG, DEBUG_ADD_CONNECTION)
 	nIn := len(g.SensorNodes) + len(g.HiddenNodes)
 	nOut := len(g.HiddenNodes) + len(g.OutputNodes)
 
-	// Are both nodes hidden? then order the edge small -> low
-	isHidden := false
 	sanity := 100
 	for sanity > 0 {
 		var r1, r2 int
@@ -165,17 +251,14 @@ func (g *Genome) AddConnection(feedForward bool) error {
 			if r1 >= len(g.SensorNodes) {
 				r1 -= len(g.SensorNodes)
 				r1 = int(g.HiddenNodes[r1])
-				isHidden = true
 			} else {
 				r1 = int(g.SensorNodes[r1])
-				isHidden = false
 			}
 
 			r2 = rand.Intn(nOut)
 			if r2 >= len(g.HiddenNodes) {
 				r2 -= len(g.HiddenNodes)
 				r2 = int(g.OutputNodes[r2])
-				isHidden = false
 			} else {
 				r2 = int(g.HiddenNodes[r2])
 			}
@@ -183,18 +266,16 @@ func (g *Genome) AddConnection(feedForward bool) error {
 			if r2 == r1 {
 				continue
 			} else {
+				Log(fmt.Sprintf("Found two nodes to try to connect, %d -> %d\n", r1, r2), DEBUG, DEBUG_ADD_CONNECTION)
 				break
 			}
-		}
-
-		if feedForward && isHidden && r2 < r1 {
-			r1, r2 = r2, r1
 		}
 
 		duplicateEdge := false
 		for _, c := range g.Connections {
 			if c.InNode == uint(r1) && c.OutNode == uint(r2) {
 				duplicateEdge = true
+				Log(fmt.Sprintf("Duplicate edge: %s\n", c.ToString()), DEBUG, DEBUG_ADD_CONNECTION)
 				break
 			}
 		}
@@ -204,41 +285,110 @@ func (g *Genome) AddConnection(feedForward bool) error {
 			continue
 		}
 
+		if g.checkForCycles(r1, r2) {
+			sanity -= 1
+			continue
+		}
+
 		connection := NewEdgeGene(uint(r1), uint(r2), RandomWeight(), MutationAddConnection)
 		g.Connections = append(g.Connections, connection)
 		return nil
 	}
 
+	Log("SanityError\n", DEBUG, DEBUG_ADD_CONNECTION)
 	return NewAddConnectionError("Reached sanity limit trying to add a new connection")
 }
 
-func (g *Genome) AddNode() {
+type AddNodeError struct {
+	Msg string
+}
+
+func NewAddNodeError(msg string) *AddConnectionError {
+	return &AddConnectionError{
+		Msg: msg,
+	}
+}
+func (e *AddNodeError) Error() string {
+	return e.Msg
+}
+
+func (g *Genome) AddNode() error {
 	// Randomly pick a connection to bifurcate
-	randomGene := (g.Connections)[rand.Intn(len(g.Connections))]
+	var randomGene *EdgeGene
+	sanity := 100
+	for sanity > 0 {
+		randomGene = (g.Connections)[rand.Intn(len(g.Connections))]
+		if randomGene.Enabled {
+			break
+		} else {
+			sanity -= 1
+		}
+	}
+
+	// This is extremely unlikely
+	if sanity <= 0 {
+		return NewAddNodeError("Could not find an enbabled gene to bifurcate")
+	}
+
+	Log(fmt.Sprintf("Adding a node to connection: %s\n", randomGene.ToString()), DEBUG, DEBUG_ADD_NODE)
 
 	// Need to add a node between the two nodes of the existing connection. Figure out what to call that node
-	var nextNode uint
-	if len(g.HiddenNodes) > 0 {
-		nextNode = g.HiddenNodes[len(g.HiddenNodes)-1] + 1
-	} else {
-		nextNode = uint(len(g.SensorNodes) + len(g.OutputNodes))
-	}
+	nextNode := uint(len(g.SensorNodes) + len(g.HiddenNodes) + len(g.OutputNodes))
+	// var nextNode uint
+	// if len(g.HiddenNodes) > 0 {
+	// } else {
+	// 	nextNode = uint(len(g.SensorNodes) + len(g.OutputNodes))
+	// }
+
+	Log(fmt.Sprintf("Next node is %d\n", nextNode), DEBUG, DEBUG_ADD_NODE)
 
 	// Create two new connection genes to fit this node into the network
 	// -> new is weight 1, new -> is the old edge's weight
 	new1 := NewEdgeGene(randomGene.InNode, nextNode, 1, MutationAddNode)
 	new2 := NewEdgeGene(nextNode, randomGene.OutNode, randomGene.Weight, MutationAddNode)
 
+	Log(fmt.Sprintf("New edges:\n%s\n%s\n", new1.ToString(), new2.ToString()), DEBUG, DEBUG_ADD_NODE)
+
 	// Disable the old connection
 	randomGene.Enabled = false
 
 	g.Connections = append(g.Connections, []*EdgeGene{new1, new2}...)
 	g.HiddenNodes = append(g.HiddenNodes, nextNode)
+
+	if DEBUG_ADD_NODE {
+		// Make sure we didn't cut off any dang ol' nodes
+		usedNodes := make(map[uint]bool)
+
+		for _, edgeGene := range g.Connections {
+			if edgeGene.Enabled {
+				usedNodes[edgeGene.InNode] = true
+				usedNodes[edgeGene.OutNode] = true
+			}
+		}
+
+		for _, nodeId := range g.SensorNodes {
+			if _, ok := usedNodes[nodeId]; !ok {
+				panic("Cut a node off from the network!")
+			}
+		}
+		for _, nodeId := range g.HiddenNodes {
+			if _, ok := usedNodes[nodeId]; !ok {
+				panic("Cut a node off from the network!")
+			}
+		}
+		for _, nodeId := range g.OutputNodes {
+			if _, ok := usedNodes[nodeId]; !ok {
+				panic("Cut a node off from the network!")
+			}
+		}
+	}
+
+	return nil
 }
 
 func (g *Genome) MutateWeight() {
 	randomGene := (g.Connections)[rand.Intn(len(g.Connections))]
-	randomGene.Weight = RandomWeight()
+	randomGene.Weight += rand.Float64()*0.5 - 0.25
 }
 
 type boolpair []bool
@@ -364,5 +514,5 @@ func (g *Genome) SortConnections() {
 }
 
 func RandomWeight() float64 {
-	return rand.Float64()*2 - 1
+	return rand.Float64()*10 - 5
 }

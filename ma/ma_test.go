@@ -48,6 +48,9 @@ func (e *EvolvingString) ListMutations() map[string]MutationType {
 	out["Change Letter"] = ChangeLetter
 	return out
 }
+func (e *EvolvingString) MutationOdds() map[MutationType]float64 {
+	return make(map[MutationType]float64)
+}
 
 func (e *EvolvingString) Mutate(mutationType MutationType, args interface{}) {
 	var s string

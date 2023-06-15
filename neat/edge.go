@@ -21,15 +21,9 @@ func NewEdge(n, c *Node) *Edge {
 }
 
 func (e *Edge) ToString() string {
-	return fmt.Sprintf("{%s %s @ %.2g}", e.In.Label, e.Out.Label, e.Weight)
+	return fmt.Sprintf("{%s | %s %s @ %.2g}", e.Label, e.In.Label, e.Out.Label, e.Weight)
 }
 
 func (e *Edge) ForwardPropogate() {
 	e.Out.ForwardPropogate()
-}
-
-func (e *Edge) Reset() {
-	if e.In.state != Unactivated {
-		e.In.Reset()
-	}
 }

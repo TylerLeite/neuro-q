@@ -40,6 +40,8 @@ func TestKnown(t *testing.T) {
 			g := 255 * gOut.Value()
 			b := 255 * bOut.Value()
 
+			xIn.Reset()
+			yIn.Reset()
 			rOut.Reset()
 			gOut.Reset()
 			bOut.Reset()
@@ -103,6 +105,8 @@ func TestRandom(t *testing.T) {
 			g := 255 * gOut.Value()
 			b := 255 * bOut.Value()
 
+			xIn.Reset()
+			yIn.Reset()
 			rOut.Reset()
 			gOut.Reset()
 			bOut.Reset()
@@ -242,6 +246,11 @@ func TestGeneration(t *testing.T) {
 			r := 255 * rOut.Value()
 			g := 255 * gOut.Value()
 			b := 255 * bOut.Value()
+
+			xIn.Reset()
+			yIn.Reset()
+
+			// TODO: reset layers
 
 			rOut.Reset()
 			gOut.Reset()

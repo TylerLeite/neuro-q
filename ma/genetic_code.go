@@ -8,6 +8,8 @@ type GeneticCode interface {
 	Randomize() // Return a random genetic code
 
 	ListMutations() map[string]MutationType
+	MutationOdds() map[MutationType]float64
+
 	Mutate(MutationType, interface{}) // Perform a specific mutation
 
 	DistanceFrom(GeneticCode, float64, float64, float64) float64
