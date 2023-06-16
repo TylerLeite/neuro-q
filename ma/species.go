@@ -54,7 +54,7 @@ func (s *Species) ToString() string {
 	out := ""
 	champ := s.Champion()
 	for i, o := range s.Members {
-		distance := o.GeneticCode().DistanceFrom(champ.GeneticCode(), s.Population.C1, s.Population.C2, s.Population.C3)
+		distance := o.GeneticCode().DistanceFrom(champ.GeneticCode(), s.Population.Cs...)
 		out += fmt.Sprintf("%d [%.2g]: %s\n", i, distance, o.GeneticCode().ToString())
 	}
 	return out

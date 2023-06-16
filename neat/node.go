@@ -8,15 +8,6 @@ import (
 )
 
 type ActivationState int8
-type ActivationFunction func(float64) float64
-
-func IdentityFunc(x float64) float64 {
-	return x
-}
-
-func SigmoidFunc(x float64) float64 {
-	return 1 / (1 + math.Exp(-4.9*x))
-}
 
 const (
 	Unactivated ActivationState = iota

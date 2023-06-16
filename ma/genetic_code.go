@@ -12,7 +12,7 @@ type GeneticCode interface {
 
 	Mutate(MutationType, interface{}) // Perform a specific mutation
 
-	DistanceFrom(GeneticCode, float64, float64, float64) float64
+	DistanceFrom(GeneticCode, ...float64) float64
 
 	ToString() string // Genetic code as a string, used for calculating population entropy
 }

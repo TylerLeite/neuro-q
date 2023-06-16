@@ -27,9 +27,7 @@ type Population struct {
 	DistanceThreshold      float64
 
 	// Constants for distance function
-	C1 float64
-	C2 float64
-	C3 float64
+	Cs []float64
 }
 
 func NewPopulation(seed Organism, fitnessFunction FitnessFunction) *Population {
@@ -46,9 +44,7 @@ func NewPopulation(seed Organism, fitnessFunction FitnessFunction) *Population {
 		LocalSearchGenerations: 16,
 		DropoffAge:             15,
 		DistanceThreshold:      math.MaxFloat64,
-		C1:                     1,
-		C2:                     1,
-		C3:                     0.4,
+		Cs:                     []float64{1, 1, 0.4, 0.1},
 	}
 
 	return &p
@@ -79,10 +75,10 @@ func (p *Population) CopyConfig() *Population {
 		LocalSearchGenerations: p.LocalSearchGenerations,
 		DropoffAge:             p.DropoffAge,
 		DistanceThreshold:      p.DistanceThreshold,
-		C1:                     p.C1,
-		C2:                     p.C2,
-		C3:                     p.C3,
+		Cs:                     make([]float64, len(p.Cs)),
 	}
+
+	copy(newPopulation.Cs, p.Cs)
 
 	return &newPopulation
 }
@@ -125,16 +121,13 @@ func (p *Population) Generate() {
 // Output a new, speciated population
 func (p *Population) SeparateIntoSpecies() {
 	// newPopulation := p.CopyConfig()
+	nextGenSpecies := make([]*Species, len(p.Species)) // Need new species to line up with matching old species
 
 	representatives := make([]Organism, len(p.Species))
 	for i, species := range p.Species {
-		if representatives[i] == nil {
-			// First pick a representative for the species if one doesn't exist
-			representatives[i] = species.RandomOrganism()
-		}
+		// Pick a representative for this species
+		representatives[i] = species.RandomOrganism()
 	}
-
-	nextGenSpecies := make([]*Species, len(p.Species)) // Need new species to line up with matching old species
 
 	for _, currentIndividual := range p.Members() {
 		foundASpecies := false
@@ -142,10 +135,14 @@ func (p *Population) SeparateIntoSpecies() {
 		for i, representative := range representatives {
 			// Place this individual into the first species where it fits
 			// TODO: figure out actual values for these constants
-			d := currentIndividual.GeneticCode().DistanceFrom(representative.GeneticCode(), p.C1, p.C2, p.C3)
+			d := currentIndividual.GeneticCode().DistanceFrom(representative.GeneticCode(), p.Cs...)
 			if d < p.DistanceThreshold {
 				if nextGenSpecies[i] == nil {
 					nextGenSpecies[i] = NewSpecies(p)
+
+					// Copy over fitness history
+					nextGenSpecies[i].FitnessHistory = make([]float64, len(p.Species[i].FitnessHistory))
+					copy(nextGenSpecies[i].FitnessHistory, p.Species[i].FitnessHistory)
 				}
 
 				nextGenSpecies[i].Members = append(nextGenSpecies[i].Members, currentIndividual.Copy())

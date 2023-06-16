@@ -9,4 +9,5 @@ const (
 	DEBUG_ADD_NODE       = false
 	DEBUG_MUTATION       = false
 	DEBUG_EPOCH          = false
+	DEBUG_GET_ACTIVATION = false
 )

@@ -1,9 +1,7 @@
-package cppn
+package neat
 
 import (
 	"math"
-
-	"github.com/TylerLeite/neuro-q/neat"
 )
 
 var seed int64 = 0
@@ -17,7 +15,10 @@ func Seed(s int64) {
 	seed = s
 }
 
-func RandomFunc() (neat.ActivationFunction, string) {
+type ActivationFunction func(float64) float64
+
+// TODO: Use an enum for function names
+func RandomFunc() (ActivationFunction, string) {
 	const totalFunctions = 14
 
 	p := randi() % totalFunctions
@@ -34,7 +35,7 @@ func RandomFunc() (neat.ActivationFunction, string) {
 	} else if p <= 5 {
 		return SigmoidFunc, "Sigmoid"
 	} else if p <= 10 {
-		return neat.SigmoidFunc, "NEAT Sigmoid"
+		return NEATSigmoidFunc, "NEAT Sigmoid"
 	} else if p <= 6 {
 		return BipolarSigmoidFunc, "Bipolar sigmoid"
 	} else if p <= 7 {
@@ -48,7 +49,40 @@ func RandomFunc() (neat.ActivationFunction, string) {
 	} else if p <= 12 {
 		return TetrationFunc, "Second Tetration"
 	} else {
-		return neat.IdentityFunc, "Identity"
+		return IdentityFunc, "Identity"
+	}
+}
+
+func FuncByName(name string) ActivationFunction {
+	switch name {
+	case "Sine":
+		return SinFunc
+	case "Double-period sine":
+		return Sin2Func
+	case "Absolute value":
+		return AbsFunc
+	case "Null function":
+		return NullFunc
+	case "Gaussian function":
+		return GaussianFunc
+	case "Sigmoid":
+		return SigmoidFunc
+	case "NEAT Sigmoid":
+		return NEATSigmoidFunc
+	case "Bipolar sigmoid":
+		return BipolarSigmoidFunc
+	case "Quadratic":
+		return QuadraticFunc
+	case "Step function":
+		return StepFunc
+	case "Negative":
+		return InversionFunc
+	case "Exponentiation":
+		return ExponentiationFunc
+	case "Second Tetration":
+		return TetrationFunc
+	default:
+		return IdentityFunc
 	}
 }
 
@@ -98,4 +132,12 @@ func ExponentiationFunc(x float64) float64 {
 
 func TetrationFunc(x float64) float64 {
 	return math.Pow(x, x)
+}
+
+func IdentityFunc(x float64) float64 {
+	return x
+}
+
+func NEATSigmoidFunc(x float64) float64 {
+	return 1 / (1 + math.Exp(-4.9*x))
 }

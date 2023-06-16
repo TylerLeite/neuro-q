@@ -26,6 +26,8 @@ type Genome struct {
 	HiddenNodes []uint
 	OutputNodes []uint
 
+	ActivationFunctions map[uint]string
+
 	UsesBias bool
 }
 
@@ -129,6 +131,33 @@ func (g *Genome) NodesToString() string {
 	nodes = nodes[:len(nodes)-1] + "]\n"
 
 	return nodes
+}
+
+func (g *Genome) ActivationFunctionOf(nodeId uint) ActivationFunction {
+	// Use vanilla NEAT activation functions for defaults
+	if g.ActivationFunctions == nil {
+		log.Book("Activation functions are nil, using defaults\n", log.DEBUG, DEBUG_GET_ACTIVATION)
+		for _, v := range g.SensorNodes {
+			if v == nodeId {
+				log.Book(fmt.Sprintf("%d: Identity\n", nodeId), log.DEBUG, DEBUG_GET_ACTIVATION)
+				return IdentityFunc
+			}
+		}
+
+		log.Book(fmt.Sprintf("%d: Sigmoid\n", nodeId), log.DEBUG, DEBUG_GET_ACTIVATION)
+		return NEATSigmoidFunc
+	}
+
+	log.Book("Activation functions are not nil\n", log.DEBUG, DEBUG_GET_ACTIVATION)
+	if fn, ok := g.ActivationFunctions[nodeId]; ok {
+		log.Book(fmt.Sprintf("Found a function for %d\n", nodeId), log.DEBUG, DEBUG_GET_ACTIVATION)
+
+		return FuncByName(fn)
+	}
+
+	log.Book(fmt.Sprintf("No function found for %d\n", nodeId), log.DEBUG, DEBUG_GET_ACTIVATION)
+	// Use the identity function if no other function is specified in the genome
+	return IdentityFunc
 }
 
 // NOTE: need to map innovation numbers within a generation to specific mutations
@@ -349,6 +378,12 @@ func (g *Genome) AddNode() error {
 	new1 := NewEdgeGene(randomGene.InNode, nextNode, 1, MutationAddNode)
 	new2 := NewEdgeGene(nextNode, randomGene.OutNode, randomGene.Weight, MutationAddNode)
 
+	// Now also need a random activation function
+	if g.ActivationFunctions != nil {
+		_, fn := RandomFunc()
+		g.ActivationFunctions[nextNode] = fn
+	}
+
 	log.Book(fmt.Sprintf("New edges:\n%s\n%s\n", new1.ToString(), new2.ToString()), log.DEBUG, log.DEBUG_ADD_NODE)
 
 	// Disable the old connection
@@ -397,6 +432,7 @@ type boolpair []bool
 
 func (g *Genome) PopulateNodeSlices() {
 	// Make sure node slices aren't already populated
+	// Could probably just do this without the check and it wouldn't be much different
 	if len(g.SensorNodes)+len(g.HiddenNodes)+len(g.OutputNodes) > 0 {
 		g.SensorNodes = make([]uint, 0)
 		g.HiddenNodes = make([]uint, 0)
@@ -432,8 +468,17 @@ func (g *Genome) PopulateNodeSlices() {
 	}
 }
 
-func (g *Genome) DistanceFrom(gc ma.GeneticCode, c1, c2, c3 float64) float64 {
+func (g *Genome) DistanceFrom(gc ma.GeneticCode, cs ...float64) float64 {
 	g2 := gc.(*Genome)
+
+	if len(cs) != 4 {
+		panic("Called distance function with the wrong number of constants!")
+	}
+
+	c1 := cs[0]
+	c2 := cs[1]
+	c3 := cs[2]
+	c4 := cs[3]
 
 	var (
 		nExcess   float64 // excess genes, how many are at the end of each genome after the last matching gene
@@ -441,6 +486,7 @@ func (g *Genome) DistanceFrom(gc ma.GeneticCode, c1, c2, c3 float64) float64 {
 		nShared   float64 // shared genes, how many match in innovation number
 		N         float64 // N is the number of genes in the larger genome
 		W         float64 // average weight difference between matching genes
+		A         float64 // percent of nodes with a shared activation function
 	)
 
 	N = math.Max(float64(len(g.Connections)), float64(len(g2.Connections)))
@@ -486,8 +532,23 @@ func (g *Genome) DistanceFrom(gc ma.GeneticCode, c1, c2, c3 float64) float64 {
 		W /= nShared
 	}
 
+	// Check differences in activation functions per node
+	if g.ActivationFunctions != nil && g2.ActivationFunctions != nil {
+		gNodeCount := len(g.ActivationFunctions)
+		g2NodeCount := len(g2.ActivationFunctions)
+
+		matchingFns := 0
+		for k, v := range g.ActivationFunctions {
+			if v2, ok := g2.ActivationFunctions[k]; ok && v2 == v {
+				matchingFns += 1
+			}
+		}
+
+		A = float64(matchingFns) / math.Max(float64(gNodeCount), float64(g2NodeCount))
+	}
+
 	// Should never be negative, but take absolute value just in case
-	distance := math.Abs(c1*nExcess/N + c2*nDisjoint/N + c3*W)
+	distance := math.Abs(c1*nExcess/N + c2*nDisjoint/N + c3*W + c4*A)
 	return distance
 }
 

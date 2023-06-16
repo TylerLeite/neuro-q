@@ -78,7 +78,7 @@ func (e *EvolvingString) Mutate(mutationType MutationType, args interface{}) {
 }
 
 // Want all strings to be in the same species -> always return 0 distance
-func (e *EvolvingString) DistanceFrom(gc GeneticCode, c1, c2, c3 float64) float64 {
+func (e *EvolvingString) DistanceFrom(gc GeneticCode, cs ...float64) float64 {
 	return 0
 }
 

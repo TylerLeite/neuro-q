@@ -93,16 +93,16 @@ func TestKnown(t *testing.T) {
 }
 
 func TestRandom(t *testing.T) {
-	Seed(3)
+	neat.Seed(3)
 
-	f01, _ := RandomFunc()
-	f02, _ := RandomFunc()
+	f01, _ := neat.RandomFunc()
+	f02, _ := neat.RandomFunc()
 	xIn := neat.NewNode(f01, neat.SensorNode)
 	yIn := neat.NewNode(f02, neat.SensorNode)
 
-	f11, _ := RandomFunc()
-	f12, _ := RandomFunc()
-	f13, _ := RandomFunc()
+	f11, _ := neat.RandomFunc()
+	f12, _ := neat.RandomFunc()
+	f13, _ := neat.RandomFunc()
 	inner1 := neat.NewNode(f11, neat.HiddenNode)
 	inner2 := neat.NewNode(f12, neat.HiddenNode)
 	inner3 := neat.NewNode(f13, neat.HiddenNode)
@@ -113,9 +113,9 @@ func TestRandom(t *testing.T) {
 	xIn.AddChild(inner3)
 	yIn.AddChild(inner3)
 
-	f21, _ := RandomFunc()
-	f22, _ := RandomFunc()
-	f23, _ := RandomFunc()
+	f21, _ := neat.RandomFunc()
+	f22, _ := neat.RandomFunc()
+	f23, _ := neat.RandomFunc()
 	rOut := neat.NewNode(f21, neat.OutputNode)
 	gOut := neat.NewNode(f22, neat.OutputNode)
 	bOut := neat.NewNode(f23, neat.OutputNode)
@@ -156,7 +156,7 @@ func TestRandom(t *testing.T) {
 // // TODO: maybe add crossover as a function member of population like fitness is?
 
 func TestGeneration(t *testing.T) {
-	Seed(11)
+	neat.Seed(11)
 
 	allNodes := make([]*neat.Node, 0)
 
@@ -182,7 +182,7 @@ func TestGeneration(t *testing.T) {
 		layers[layerIdx] = make([]*neat.Node, nodesInLayer)
 
 		for nodeIdx := 0; nodeIdx < nodesInLayer; nodeIdx += 1 {
-			fn, _ := RandomFunc()
+			fn, _ := neat.RandomFunc()
 			node := neat.NewNode(fn, neat.HiddenNode)
 			layers[layerIdx][nodeIdx] = node
 			allNodes = append(allNodes, node)
@@ -222,9 +222,9 @@ func TestGeneration(t *testing.T) {
 		}
 	}
 
-	rOut := neat.NewNode(AbsFunc, neat.OutputNode)
-	gOut := neat.NewNode(AbsFunc, neat.OutputNode)
-	bOut := neat.NewNode(AbsFunc, neat.OutputNode)
+	rOut := neat.NewNode(neat.AbsFunc, neat.OutputNode)
+	gOut := neat.NewNode(neat.AbsFunc, neat.OutputNode)
+	bOut := neat.NewNode(neat.AbsFunc, neat.OutputNode)
 
 	allNodes = append(allNodes, rOut)
 	allNodes = append(allNodes, gOut)
@@ -331,8 +331,8 @@ func TestEvolution(t *testing.T) {
 	p.MinimumEntropy = 0.35
 	p.LocalSearchGenerations = 16
 
-	p.C1 = 10
-	p.C3 = 0.4
+	p.Cs[0] = 10
+	p.Cs[2] = 0.4
 
 	// G := 100
 	// for i := 0; i < G; i += 1 {

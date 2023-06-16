@@ -245,14 +245,15 @@ func TestEvolution(t *testing.T) {
 	p := ma.NewPopulation(ma.Organism(seedNetwork), NeatFitness)
 	seedNetwork.Population = p
 
-	p.DistanceThreshold = 2
+	p.Size = 100
+	p.DistanceThreshold = 1.5
 	p.CullingPercent = 0.5
 	p.RecombinationPercent = 0.8
 	p.MinimumEntropy = 0.35
 	p.LocalSearchGenerations = 16
+	p.DropoffAge = 20
 
-	p.C1 = 10
-	p.C3 = 0.4
+	p.Cs = []float64{10, 1, 0.4, 0}
 
 	// TODO: debug log flag for console output
 
@@ -271,7 +272,7 @@ func TestEvolution(t *testing.T) {
 			break
 		}
 
-		fmt.Printf("New generation, %d/%d\n", i+1, G)
+		fmt.Printf("New generation, %d/%d [%d species]\n", i+1, G, len(p.Species))
 
 		championDNAs, championFitnesses := p.Epoch()
 
