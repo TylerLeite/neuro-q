@@ -69,6 +69,7 @@ func (n *Network) Copy() ma.Organism {
 
 func (n *Network) RandomNeighbor() ma.Organism {
 	neighbor := n.Copy()
+	n.isCompiled = false
 
 	// TODO: get from config
 	args := MutateArgs{
