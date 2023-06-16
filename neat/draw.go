@@ -145,7 +145,8 @@ func drawEdge(x0, y0, x1, y1 int, label string, weight float64, font image.Image
 }
 
 func (n *Network) SeparateIntoLayers() [][]*Node {
-	layers := make([][]*Node, 0)
+	// Now the same thing but forwards
+	layersi := make([][]*Node, 0)
 	visited := make(map[*Node]bool)
 
 	for _, node := range n.Nodes {
@@ -158,7 +159,7 @@ func (n *Network) SeparateIntoLayers() [][]*Node {
 		visited[sensorNode] = true
 		inputLayer = append(inputLayer, sensorNode)
 	}
-	layers = append(layers, inputLayer)
+	layersi = append(layersi, inputLayer)
 
 	outputLayer := make([]*Node, 0)
 	for _, nodeId := range n.DNA.OutputNodes {
@@ -169,7 +170,7 @@ func (n *Network) SeparateIntoLayers() [][]*Node {
 
 	index := 0
 	for {
-		thisLayer := layers[index]
+		thisLayer := layersi[index]
 		nextLayer := make([]*Node, 0)
 
 		for _, node := range thisLayer {
@@ -187,12 +188,108 @@ func (n *Network) SeparateIntoLayers() [][]*Node {
 		if len(nextLayer) == 0 {
 			break
 		} else {
-			layers = append(layers, nextLayer)
+			layersi = append(layersi, nextLayer)
 			index += 1
 		}
 	}
 
-	layers = append(layers, outputLayer)
+	layersi = append(layersi, outputLayer)
+
+	// Now the same thing but backwards
+	layersj := make([][]*Node, 0)
+	layersj = append(layersj, outputLayer)
+
+	for _, node := range n.Nodes {
+		visited[node] = false
+	}
+
+	for _, node := range inputLayer {
+		visited[node] = true
+	}
+
+	for _, node := range outputLayer {
+		visited[node] = true
+	}
+
+	index = 0
+	for {
+		thisLayer := layersj[index]
+		nextLayer := make([]*Node, 0)
+
+		for _, node := range thisLayer {
+			for _, inEdge := range node.In {
+				child := inEdge.In
+				if visited[child] {
+					continue
+				} else {
+					visited[child] = true
+					nextLayer = append(nextLayer, child)
+				}
+			}
+		}
+
+		if len(nextLayer) == 0 {
+			break
+		} else {
+			layersj = append(layersj, nextLayer)
+			index += 1
+		}
+	}
+
+	layersj = append(layersj, inputLayer)
+
+	// This is where the magic happens
+	for _, node := range n.Nodes {
+		visited[node] = false
+	}
+
+	layersFromFront := make([][]*Node, 0)
+	layersFromBack := make([][]*Node, 0)
+
+	i := 0
+	done := false
+	for !done {
+		done = true
+
+		nextLayerFromFront := make([]*Node, 0)
+		nextLayerFromBack := make([]*Node, 0)
+
+		if len(layersi) > i {
+			done = false
+			for _, node := range layersi[i] {
+				if visited[node] {
+					continue
+				} else {
+					visited[node] = true
+					nextLayerFromFront = append(nextLayerFromFront, node)
+				}
+			}
+		}
+
+		if len(layersj) > i {
+			done = false
+			for _, node := range layersj[i] {
+				if visited[node] {
+					continue
+				} else {
+					visited[node] = true
+					nextLayerFromBack = append(nextLayerFromBack, node)
+				}
+			}
+		}
+
+		if len(nextLayerFromFront) > 0 {
+			layersFromFront = append(layersFromFront, nextLayerFromFront)
+		}
+
+		if len(nextLayerFromBack) > 0 {
+			layersFromBack = append([][]*Node{nextLayerFromBack}, layersFromBack...)
+		}
+
+		i += 1
+	}
+
+	layers := append(layersFromFront, layersFromBack...)
 	return layers
 }
 

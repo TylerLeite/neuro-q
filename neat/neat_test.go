@@ -182,6 +182,21 @@ func TestDraw(t *testing.T) {
 	network.Draw("test.bmp")
 }
 
+func TestMassiveDraw(t *testing.T) {
+	genome := NewGenome(32, 32, true)
+
+	for i := 0; i < 1000-64; i += 1 {
+		genome.AddNode()
+	}
+
+	for i := 0; i < 256; i += 1 {
+		genome.AddConnection(false)
+	}
+
+	network := NewNetwork(genome, nil)
+	network.Draw("test_massive.bmp")
+}
+
 func TestXor(t *testing.T) {
 
 	var fitness float64
@@ -258,13 +273,16 @@ func TestEvolution(t *testing.T) {
 
 		fmt.Printf("New generation, %d/%d\n", i+1, G)
 
-		_, championFitnesses := p.Epoch()
+		championDNAs, championFitnesses := p.Epoch()
 
 		maxFitnessThisGeneration := 0.0
-		for _, championFitness := range championFitnesses {
+		for j, championFitness := range championFitnesses {
 			if championFitness > maxFitnessThisGeneration {
 				maxFitnessThisGeneration = championFitness
 			}
+
+			championNetwork := NewNetwork(championDNAs[j].(*Genome), p)
+			championNetwork.Draw(fmt.Sprintf("drawn/%d_%d.bmp", i, j))
 
 			if math.IsInf(championFitness, 1) {
 				fmt.Println("Found a fully verified network!")

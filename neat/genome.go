@@ -239,6 +239,7 @@ func (e *AddConnectionError) Error() string {
 }
 
 // TODO: Make it so feedForward actually matters
+// TODO: This is extremely inefficient for feed-forward + large networks
 func (g *Genome) AddConnection(feedForward bool) error {
 	log.Book("Mutate add conection", log.DEBUG, log.DEBUG_ADD_CONNECTION)
 	nIn := len(g.SensorNodes) + len(g.HiddenNodes)
