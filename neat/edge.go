@@ -25,5 +25,6 @@ func (e *Edge) ToString() string {
 }
 
 func (e *Edge) ForwardPropogate() {
+	e.Out.visitedBy[e] = true
 	e.Out.ForwardPropogate()
 }

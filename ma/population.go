@@ -1,6 +1,7 @@
 package ma
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -185,7 +186,7 @@ func (p *Population) Stabilization() {
 }
 
 // TODO: Wrap the output in a new type?
-func (p *Population) Epoch() ([]GeneticCode, []float64) {
+func (p *Population) Epoch() ([]GeneticCode, []float64, error) {
 	speciesLengths := make([]int, len(p.Species))
 	for i, species := range p.Species {
 		speciesLengths[i] = len(species.Members)
@@ -193,7 +194,7 @@ func (p *Population) Epoch() ([]GeneticCode, []float64) {
 	log.Book(fmt.Sprintf("%d species, lengths: %v\n", len(p.Species), speciesLengths), log.DEBUG, log.DEBUG_EPOCH)
 
 	// TODO: sort by max fitness, kill off unfit species
-	// p.SortSpecies()
+	// TODO: save champion of culled species, add to a random new species
 	for j := len(p.Species) - 1; j >= 0; j -= 1 {
 		species := p.Species[j]
 		species.UpdateFitnessHistory()
@@ -225,10 +226,13 @@ func (p *Population) Epoch() ([]GeneticCode, []float64) {
 		}
 	}
 	if massExtinct {
-		panic("Science went too far")
+		return nil, nil, errors.New("Science went too far")
 	}
 
 	log.Book("Champion fitness per species:\n", log.DEBUG, log.DEBUG_EPOCH)
+
+	// TODO: output champions from SortSpecies
+	p.SortSpecies()
 
 	champions := make([]GeneticCode, len(p.Species))
 	fitnesses := make([]float64, len(p.Species))
@@ -243,7 +247,7 @@ func (p *Population) Epoch() ([]GeneticCode, []float64) {
 
 	log.Break(log.NL, log.DEBUG, log.DEBUG_EPOCH)
 
-	return champions, fitnesses
+	return champions, fitnesses, nil
 }
 
 ////

@@ -29,15 +29,23 @@ type Genome struct {
 	ActivationFunctions map[uint]string
 
 	UsesBias bool
+
+	MinWeight float64
+	MaxWeight float64
+
+	MutationRatios map[ma.MutationType]float64
 }
 
-func NewGenome(inNodes, outNodes int, useBias bool) *Genome {
+func NewGenome(inNodes, outNodes int, useBias bool, minWeight, maxWeight float64) *Genome {
 	g := &Genome{
 		Connections: make([]*EdgeGene, 0),
 		SensorNodes: make([]uint, inNodes+flag2Int(useBias)),
 		HiddenNodes: make([]uint, 0),
 		OutputNodes: make([]uint, outNodes),
 		UsesBias:    useBias,
+
+		MinWeight: minWeight,
+		MaxWeight: maxWeight,
 	}
 
 	g.Randomize()
@@ -51,6 +59,11 @@ func (g *Genome) Copy() ma.GeneticCode {
 		HiddenNodes: make([]uint, len(g.HiddenNodes)),
 		OutputNodes: make([]uint, len(g.OutputNodes)),
 		UsesBias:    g.UsesBias,
+
+		MinWeight: g.MinWeight,
+		MaxWeight: g.MaxWeight,
+
+		MutationRatios: g.MutationRatios,
 	}
 
 	for i, v := range g.Connections {
@@ -80,7 +93,7 @@ func (g *Genome) Randomize() {
 		nodesConnected[outNode] = true
 		outNode += inNodes
 
-		c := NewEdgeGene(uint(s), uint(outNode), RandomWeight(), NoMutation)
+		c := NewEdgeGene(uint(s), uint(outNode), g.RandomWeight(), NoMutation)
 		g.Connections = append(g.Connections, c)
 	}
 
@@ -91,7 +104,7 @@ func (g *Genome) Randomize() {
 		}
 
 		inNode := uint(rand.Intn(inNodes))
-		c := NewEdgeGene(inNode, uint(o+inNodes), RandomWeight(), NoMutation)
+		c := NewEdgeGene(inNode, uint(o+inNodes), g.RandomWeight(), NoMutation)
 		g.Connections = append(g.Connections, c)
 	}
 
@@ -136,26 +149,26 @@ func (g *Genome) NodesToString() string {
 func (g *Genome) ActivationFunctionOf(nodeId uint) ActivationFunction {
 	// Use vanilla NEAT activation functions for defaults
 	if g.ActivationFunctions == nil {
-		log.Book("Activation functions are nil, using defaults\n", log.DEBUG, DEBUG_GET_ACTIVATION)
+		log.Book("Activation functions are nil, using defaults\n", log.DEBUG, log.DEBUG_GET_ACTIVATION)
 		for _, v := range g.SensorNodes {
 			if v == nodeId {
-				log.Book(fmt.Sprintf("%d: Identity\n", nodeId), log.DEBUG, DEBUG_GET_ACTIVATION)
+				log.Book(fmt.Sprintf("%d: Identity\n", nodeId), log.DEBUG, log.DEBUG_GET_ACTIVATION)
 				return IdentityFunc
 			}
 		}
 
-		log.Book(fmt.Sprintf("%d: Sigmoid\n", nodeId), log.DEBUG, DEBUG_GET_ACTIVATION)
+		log.Book(fmt.Sprintf("%d: Sigmoid\n", nodeId), log.DEBUG, log.DEBUG_GET_ACTIVATION)
 		return NEATSigmoidFunc
 	}
 
-	log.Book("Activation functions are not nil\n", log.DEBUG, DEBUG_GET_ACTIVATION)
+	log.Book("Activation functions are not nil\n", log.DEBUG, log.DEBUG_GET_ACTIVATION)
 	if fn, ok := g.ActivationFunctions[nodeId]; ok {
-		log.Book(fmt.Sprintf("Found a function for %d\n", nodeId), log.DEBUG, DEBUG_GET_ACTIVATION)
+		log.Book(fmt.Sprintf("Found a function for %d\n", nodeId), log.DEBUG, log.DEBUG_GET_ACTIVATION)
 
 		return FuncByName(fn)
 	}
 
-	log.Book(fmt.Sprintf("No function found for %d\n", nodeId), log.DEBUG, DEBUG_GET_ACTIVATION)
+	log.Book(fmt.Sprintf("No function found for %d\n", nodeId), log.DEBUG, log.DEBUG_GET_ACTIVATION)
 	// Use the identity function if no other function is specified in the genome
 	return IdentityFunc
 }
@@ -167,14 +180,14 @@ const (
 	NoMutation ma.MutationType = iota
 	MutationAddConnection
 	MutationAddNode
-	MutationMutateWeight
+	MutationMutateWeights
 )
 
 var MutationTypeToString = map[ma.MutationType]string{
 	NoMutation:            "No Mutation",
 	MutationAddConnection: "Add Connection",
 	MutationAddNode:       "Add Node",
-	MutationMutateWeight:  "Mutate Weight",
+	MutationMutateWeights: "Mutate Weights",
 }
 
 func (g *Genome) ListMutations() map[string]ma.MutationType {
@@ -182,15 +195,19 @@ func (g *Genome) ListMutations() map[string]ma.MutationType {
 	m := make(map[string]ma.MutationType)
 	m["Add Connection"] = MutationAddConnection
 	m["Add Node"] = MutationAddNode
-	m["Mutate Weight"] = MutationMutateWeight
+	m["Mutate Weights"] = MutationMutateWeights
 	return m
 }
 
 func (g *Genome) MutationOdds() map[ma.MutationType]float64 {
+	if g.MutationRatios != nil {
+		return g.MutationRatios
+	}
+
 	m := make(map[ma.MutationType]float64)
 	m[MutationAddConnection] = 0.15
 	m[MutationAddNode] = 0.05
-	m[MutationMutateWeight] = 0.8
+	m[MutationMutateWeights] = 0.8
 	return m
 }
 
@@ -208,8 +225,8 @@ func (g *Genome) Mutate(typ ma.MutationType, args interface{}) {
 		}
 	case MutationAddNode:
 		g.AddNode()
-	case MutationMutateWeight:
-		g.MutateWeight()
+	case MutationMutateWeights:
+		g.MutateWeights()
 	default:
 		// TODO: unknown mutation type error
 		fmt.Printf("ERROR: Unknown mutation type: %d", typ)
@@ -321,7 +338,7 @@ func (g *Genome) AddConnection(feedForward bool) error {
 			continue
 		}
 
-		connection := NewEdgeGene(uint(r1), uint(r2), RandomWeight(), MutationAddConnection)
+		connection := NewEdgeGene(uint(r1), uint(r2), g.RandomWeight(), MutationAddConnection)
 		g.Connections = append(g.Connections, connection)
 		return nil
 	}
@@ -423,9 +440,14 @@ func (g *Genome) AddNode() error {
 	return nil
 }
 
-func (g *Genome) MutateWeight() {
-	randomGene := (g.Connections)[rand.Intn(len(g.Connections))]
-	randomGene.Weight += rand.Float64()*0.5 - 0.25
+func (g *Genome) MutateWeights() {
+	for _, edgeGene := range g.Connections {
+		if rand.Intn(10) < 9 {
+			edgeGene.Weight += rand.Float64()*0.5 - 0.25
+		} else {
+			edgeGene.Weight = g.RandomWeight()
+		}
+	}
 }
 
 type boolpair []bool
@@ -549,6 +571,7 @@ func (g *Genome) DistanceFrom(gc ma.GeneticCode, cs ...float64) float64 {
 
 	// Should never be negative, but take absolute value just in case
 	distance := math.Abs(c1*nExcess/N + c2*nDisjoint/N + c3*W + c4*A)
+	log.Book(fmt.Sprintf("d=%.2g, excess=%.2g, disjoint=%.2g, W=%.2g, A=%.2g\n", distance, nExcess/N, nDisjoint/N, W, A), log.DEBUG, log.DEBUG_GENOME_DISTANCE)
 	return distance
 }
 
@@ -576,6 +599,7 @@ func (g *Genome) SortConnections() {
 	sort.Sort(sg)
 }
 
-func RandomWeight() float64 {
-	return rand.Float64()*30 - 15
+func (g *Genome) RandomWeight() float64 {
+	rng := g.MaxWeight - g.MinWeight
+	return rand.Float64()*rng + g.MinWeight
 }

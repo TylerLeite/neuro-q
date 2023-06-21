@@ -2,7 +2,7 @@ package log
 
 import "fmt"
 
-const DEBUG = false
+const DEBUG = true
 
 // TODO: better logging solution
 // e.g.

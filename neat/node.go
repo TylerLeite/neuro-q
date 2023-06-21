@@ -32,12 +32,10 @@ type Node struct {
 
 	Type NodeType
 
-	state ActivationState
-
 	fn    ActivationFunction
 	value float64
 
-	visited bool // only used during activation
+	visitedBy map[*Edge]bool // only used during activation
 }
 
 func NewNode(activation ActivationFunction, typ NodeType) *Node {
@@ -47,10 +45,10 @@ func NewNode(activation ActivationFunction, typ NodeType) *Node {
 
 		Type: typ,
 
-		state: Unactivated,
-
 		fn:    activation,
 		value: math.NaN(),
+
+		visitedBy: make(map[*Edge]bool),
 	}
 
 	return &n
@@ -77,6 +75,19 @@ func (n *Node) ToString() string {
 	return fmt.Sprintf("Node #%s:\n\t%s\n\t%s\n", n.Label, inRepr, outRepr)
 }
 
+func (n *Node) State() ActivationState {
+	timesActivated := len(n.visitedBy)
+	maxActivations := len(n.In)
+
+	if timesActivated == 0 {
+		return Unactivated
+	} else if timesActivated < maxActivations {
+		return InActivation
+	} else {
+		return Activated
+	}
+}
+
 func (n *Node) Value() float64 {
 	return n.value
 }
@@ -95,61 +106,51 @@ func (n *Node) AddChild(c *Node) *Edge {
 }
 
 func (n *Node) ForwardPropogate() {
-	n.visited = true
-	if n.state != Activated {
-		log.Book(fmt.Sprintf("%s not activated, trying activation\n", n.Label), log.DEBUG, log.DEBUG_PROPAGATION)
-		if len(n.In) == 0 {
-			log.Book(fmt.Sprintf("%s is an input node\n", n.Label), log.DEBUG, log.DEBUG_PROPAGATION)
-			n.state = Activated
-			n.value = n.fn(n.value)
-		} else {
-			n.state = InActivation
-			// Get sum of inputs
-			sum := 0.0
-			bias := 0.0
-			// anyActivated := false
-			allActivated := true
-			for _, p := range n.In {
-				if math.IsNaN(p.In.value) {
-					log.Book(fmt.Sprintf("%s has an input which is not yet activated (%s)\n", n.Label, p.In.Label), log.DEBUG, log.DEBUG_PROPAGATION)
-					allActivated = false
-				} else if p.In.Type != BiasNode {
-					sum += p.In.value * p.Weight
-					log.Book(fmt.Sprintf("Adding #%s (value = %.2g*%.2g) to sum\n", p.In.Label, p.In.value, p.Weight), log.DEBUG, log.DEBUG_PROPAGATION)
-					// anyActivated = true
-				} else {
-					bias = p.In.value * p.Weight
-					log.Book(fmt.Sprintf("Adding #%s (value = %.2g*%.2g) to bias\n", p.In.Label, p.In.value, p.Weight), log.DEBUG, log.DEBUG_PROPAGATION)
-					// anyActivated = true
-				}
-			}
+	log.Book(fmt.Sprintf("%s not activated, trying activation\n", n.Label), log.DEBUG, log.DEBUG_PROPAGATION)
+	if len(n.In) == 0 {
+		log.Book(fmt.Sprintf("%s is an input node\n", n.Label), log.DEBUG, log.DEBUG_PROPAGATION)
+		n.value = n.fn(n.value)
+	} else {
+		// Get sum of inputs
+		sum := 0.0
+		bias := 0.0
+		allActivated := true
 
-			// if !anyActivated || (!allActivated && len(n.Out) == 0) {
-			// 	// Don't set an output value unless all its inputs are activated
-			// 	log.Book(fmt.Sprintf("%s activation unsucessful\n", n.Label), log.DEBUG, log.DEBUG_PROPAGATION)
-			// 	return
-			// }
-			if !allActivated {
-				// Don't set an output value unless all its inputs are activated
-				log.Book(fmt.Sprintf("%s activation unsucessful\n", n.Label), log.DEBUG, log.DEBUG_PROPAGATION)
-				return
+		for _, p := range n.In {
+			if math.IsNaN(p.In.value) {
+				log.Book(fmt.Sprintf("%s has an input which is not yet activated (%s)\n", n.Label, p.In.Label), log.DEBUG, log.DEBUG_PROPAGATION)
+				allActivated = false
+			} else if p.In.Type != BiasNode {
+				sum += p.In.value * p.Weight
+				log.Book(fmt.Sprintf("Adding #%s (value = %.2g*%.2g) to sum\n", p.In.Label, p.In.value, p.Weight), log.DEBUG, log.DEBUG_PROPAGATION)
+			} else {
+				bias = p.In.value * p.Weight
+				log.Book(fmt.Sprintf("Adding #%s (value = %.2g*%.2g) to bias\n", p.In.Label, p.In.value, p.Weight), log.DEBUG, log.DEBUG_PROPAGATION)
 			}
-
-			if allActivated {
-				n.state = Activated
-			}
-
-			log.Book(fmt.Sprintf("Sum is %.2g, bias is %.2g\n", sum, bias), log.DEBUG, log.DEBUG_PROPAGATION)
-			n.value = n.fn(sum) + bias
-			log.Book(fmt.Sprintf("%s activation successful! Value = %.2g\n", n.Label, n.value), log.DEBUG, log.DEBUG_PROPAGATION)
 		}
+
+		log.Book(fmt.Sprintf("Sum is %.2g, bias is %.2g\n", sum, bias), log.DEBUG, log.DEBUG_PROPAGATION)
+		n.value = n.fn(sum) + bias
+
+		if allActivated {
+			log.Book(fmt.Sprintf("%s activation finished! Value = %.2g\n", n.Label, n.value), log.DEBUG, log.DEBUG_PROPAGATION)
+
+		} else {
+			// State stays "in activation"
+			log.Book(fmt.Sprintf("%s activation unfinished, partial value = %.2g\n", n.Label, n.value), log.DEBUG, log.DEBUG_PROPAGATION)
+		}
+
 	}
 
 	// Pay it forward
-	for _, p := range n.Out {
-		if !p.Out.visited {
-			log.Book(fmt.Sprintf("Propagating to %s\n", p.Out.Label), log.DEBUG, log.DEBUG_PROPAGATION)
-			p.ForwardPropogate()
+	for _, edge := range n.Out {
+		log.Book(fmt.Sprintf("Checking if %s has propagated to %s yet\n", edge.In.Label, edge.Out.Label), log.DEBUG, log.DEBUG_PROPAGATION)
+
+		if _, ok := edge.Out.visitedBy[edge]; !ok {
+			log.Book(fmt.Sprintf("Propagating to %s\n", edge.Out.Label), log.DEBUG, log.DEBUG_PROPAGATION)
+			edge.ForwardPropogate()
+		} else {
+			log.Book(fmt.Sprintf("Not propagating to %s\n", edge.Out.Label), log.DEBUG, log.DEBUG_PROPAGATION)
 		}
 	}
 }
@@ -157,12 +158,11 @@ func (n *Node) ForwardPropogate() {
 // For now, assume reset is only called after a given calculate is done running
 func (n *Node) Reset() {
 	log.Book(fmt.Sprintf("Resetting %s\n", n.Label), log.DEBUG, log.DEBUG_RESET)
-	n.state = Unactivated
 	n.value = math.NaN()
-	n.visited = false
+	n.visitedBy = make(map[*Edge]bool)
 }
 
 func (n *Node) Deactivate() {
 	log.Book(fmt.Sprintf("Deactivating %s\n", n.Label), log.DEBUG, log.DEBUG_RESET)
-	n.visited = false
+	n.visitedBy = make(map[*Edge]bool)
 }

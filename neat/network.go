@@ -77,11 +77,13 @@ func (n *Network) RandomNeighbor() ma.Organism {
 	}
 
 	r := rand.Float64()
-	mutation := MutationAddConnection
-	if r < 0.7 {
-		mutation = MutationMutateWeight
-	} else if r < 0.8 {
-		mutation = MutationAddNode
+	mutation := MutationAddNode
+
+	for k, v := range n.DNA.MutationOdds() {
+		r -= v
+		if r <= 0 {
+			mutation = k
+		}
 	}
 
 	neighbor.GeneticCode().Mutate(mutation, args)
@@ -316,6 +318,11 @@ func (n *Network) Compile() error {
 	return nil
 }
 
+func (n *Network) ForceCompile() error {
+	n.isCompiled = false
+	return n.Compile()
+}
+
 func (n *Network) IsCompiled() bool {
 	return n.isCompiled
 }
@@ -329,19 +336,10 @@ func (n *Network) Activate(inputs []float64, sensors, outputs []*Node) error {
 	done := false
 	sanity := 100
 	for !done && sanity > 0 {
-		for _, node := range n.Nodes {
-			node.visited = false
-		}
-
 		for i, in := range sensors {
 			in.SetDefaultValue(inputs[i])
 			log.Book(fmt.Sprintf("Sensor %s prop\n", in.Label), log.DEBUG, log.DEBUG_PROPAGATION)
 			in.ForwardPropogate()
-
-			// Want to be able to revisit nodes once you have a new input
-			for _, node := range n.Nodes {
-				node.visited = false
-			}
 		}
 
 		done = true

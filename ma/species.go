@@ -7,6 +7,8 @@ import (
 	"math"
 	"math/rand"
 	"sort"
+
+	"github.com/TylerLeite/neuro-q/log"
 )
 
 // NOTE: current idea of a population fits more closely to a species, actually
@@ -30,6 +32,7 @@ func (o SortableOrganisms) Swap(i, j int) {
 	o.organisms[i], o.organisms[j] = o.organisms[j], o.organisms[i]
 }
 
+// TODO: Species.ID for image naming
 type Species struct {
 	Population     *Population
 	Members        []Organism
@@ -154,6 +157,8 @@ func (s *Species) Recombination(culledPopulationCount float64) {
 	speciesTargetSize := int(math.Round(float64(s.Population.Size) * thisSpeciesPopulationPercent))
 	numberToRecombine := int(math.Round(float64(speciesTargetSize) * s.Population.RecombinationPercent))
 	numberToMutate := speciesTargetSize - numberToRecombine
+
+	log.Book(fmt.Sprintf("Next population stats: r=%d, m=%d\n", numberToRecombine, numberToMutate), log.DEBUG, log.DEBUG_RECOMBINATION)
 
 	// Make room for last generation's champion
 	if numberToRecombine > numberToMutate {

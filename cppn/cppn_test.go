@@ -1,6 +1,7 @@
 package cppn
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -8,7 +9,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/TylerLeite/neuro-q/ma"
 	"github.com/TylerLeite/neuro-q/neat"
 )
 
@@ -309,38 +309,115 @@ func TestGeneration(t *testing.T) {
 	png.Encode(f, img)
 }
 
-func CPPNFitness(o ma.Organism) float64 {
-	return 0
+func clamp(n float64) uint8 {
+	if n < 0 {
+		return 0
+	} else if n > 255 {
+		return 255
+	} else {
+		return uint8(n)
+	}
 }
 
-func TestEvolution(t *testing.T) {
-	neat.ResetInnovationHistory()
-	// ResetInnovationHistory()
+func TestMassive(t *testing.T) {
+	genome := neat.NewGenome(2, 3, true, -15, 15)
 
-	seedGenome := neat.NewGenome(2, 3, false)
-	seedNetwork := neat.NewNetwork(seedGenome, nil)
-	// seedGenome := NewGenome(2, 3, false)
-	// seedNetwork := NewNetwork(seedGenome, nil)
+	for i := 0; i < 10; i += 1 {
+		genome.AddNode()
+	}
 
-	p := ma.NewPopulation(ma.Organism(seedNetwork), CPPNFitness)
-	seedNetwork.Population = p
+	for i := 0; i < 20; i += 1 {
+		genome.AddConnection(false)
+	}
 
-	p.DistanceThreshold = 2
-	p.CullingPercent = 0.5
-	p.RecombinationPercent = 0.8
-	p.MinimumEntropy = 0.35
-	p.LocalSearchGenerations = 16
+	nodes := make(map[uint]bool)
+	for _, edgeGene := range genome.Connections {
+		nodes[edgeGene.InNode] = true
+		nodes[edgeGene.OutNode] = true
+	}
 
-	p.Cs[0] = 10
-	p.Cs[2] = 0.4
+	genome.ActivationFunctions = make(map[uint]string)
+	for nodeId := range nodes {
+		_, fnName := neat.RandomFunc()
+		genome.ActivationFunctions[nodeId] = fnName
+	}
 
-	// G := 100
-	// for i := 0; i < G; i += 1 {
-	// 	p.Epoch()
+	n := neat.NewNetwork(genome, nil)
+	n.Draw("massive_network.bmp")
 
-	// 	for _, species := range p.Species {
-	// 		championNetwork := species.Champion().(*Network)
-	// 		championNetwork.Draw("<filename>.bmp")
-	// 	}
-	// }
+	var (
+		bias *neat.Node
+		inX  *neat.Node
+		inY  *neat.Node
+	)
+
+	for _, nodeI := range n.DNA.SensorNodes {
+		node := n.Nodes[nodeI]
+		if node.Label == "0" {
+			bias = node
+		} else if node.Label == "1" {
+			inX = node
+		} else {
+			inY = node
+		}
+	}
+
+	var (
+		outR *neat.Node
+		outG *neat.Node
+		outB *neat.Node
+	)
+
+	for _, nodeI := range n.DNA.OutputNodes {
+		node := n.Nodes[nodeI]
+		if node.Label == "3" {
+			outR = node
+		} else if node.Label == "4" {
+			outG = node
+		} else {
+			outB = node
+		}
+	}
+
+	// Output as an image
+	const (
+		w = 32
+		h = 32
+	)
+
+	img := image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{w, h}})
+
+	scale := 1.0
+
+	for x := float64(0); x < w; x += 1 {
+		for y := float64(0); y < h; y += 1 {
+
+			err := n.Activate(
+				[]float64{1, scale * (x - w/2), scale * (y - h/2)},
+				[]*neat.Node{bias, inX, inY},
+				[]*neat.Node{outR, outG, outB},
+			)
+
+			if err != nil {
+				panic(err)
+			}
+
+			_r := outR.Value()
+			_g := outG.Value()
+			_b := outB.Value()
+			r := clamp(256 * neat.GaussianFunc(_r))
+			g := clamp(256 * neat.StepFunc(_g))
+			b := clamp(256 * neat.NEATSigmoidFunc(_b))
+
+			img.Set(int(x), int(y), color.RGBA{r, g, b, 0xff})
+			// img.Set(int(x), int(y), color.RGBA{0xee, 0x11, 0x22, 0xff})
+
+			// if int(x)%int(w/10) == 0 && int(y)%int(h/10) == 0 {
+			fmt.Printf("(%d,%d): %.2g,%.2g,%.2g -> %d,%d,%d\n", int(x), int(y), _r, _g, _b, r, g, b)
+			// }
+		}
+	}
+
+	f, _ := os.Create("massive_generated.png")
+	png.Encode(f, img)
 }

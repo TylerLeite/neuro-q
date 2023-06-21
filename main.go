@@ -1,48 +1,27 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"math/rand"
-	"time"
 
-	"github.com/TylerLeite/neuro-q/gp"
-	"github.com/TylerLeite/neuro-q/qc"
+	"github.com/TylerLeite/neuro-q/cppn"
+	"github.com/TylerLeite/neuro-q/neat"
 )
 
-// func test() {
-// 	qc.TestAll()
-// 	gp.TestAll()
-// }
-
-func compileSyntaxTree(t *gp.DerivationTree) qc.Gate {
-	I := qc.NewIdentity()
-	out := qc.NewIdentity()
-
-	for i := 0; i < 7; i++ {
-		out, _ = qc.KroneckerProduct(out, I)
-	}
-
-	return out
-}
-
 func main() {
-	rand.Seed(time.Now().UnixNano())
+	var experiment = flag.String("test", "xor", "name of the test to run")
+	flag.Parse()
 
-	rules, symbolMap := gp.LoadRulesFromFile("./gp/grammars/clifford_plus_t.grmr")
+	fmt.Println(*experiment)
 
-	const N = 20
-	var codons = make(gp.Genome, N)
-	for i := 0; i < N; i++ {
-		codons[i] = gp.Gene(rand.Intn(256))
+	switch *experiment {
+	case "xor":
+		neat.XorEvolution()
+	case "noise":
+		cppn.NoiseEvolution()
+	case "mandelbrot":
+		cppn.MandelbrotEvolution()
+	default:
+		fmt.Println("bye.")
 	}
-
-	out := gp.RunDerivationSequence(rules, symbolMap, codons)
-	syn := make([]*gp.DerivationTree, len(out))
-	for i, branch := range out {
-		syn[i] = branch.ToSyntaxTree()
-	}
-
-	fmt.Println(syn)
-	// circuit := compileSyntaxTree(syn[0])
-	// fmt.Println(circuit)
 }

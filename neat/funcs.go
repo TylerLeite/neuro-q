@@ -19,13 +19,13 @@ type ActivationFunction func(float64) float64
 
 // TODO: Use an enum for function names
 func RandomFunc() (ActivationFunction, string) {
-	const totalFunctions = 14
+	const totalFunctions = 15
 
 	p := randi() % totalFunctions
 	if p <= 0 {
-		return SinFunc, "Sine"
+		return SinFunc, "Sine eave"
 	} else if p <= 1 {
-		return Sin2Func, "Double-period sine"
+		return Sin2Func, "Double-period sine wave"
 	} else if p <= 2 {
 		return AbsFunc, "Absolute value"
 	} else if p <= 3 {
@@ -35,7 +35,7 @@ func RandomFunc() (ActivationFunction, string) {
 	} else if p <= 5 {
 		return SigmoidFunc, "Sigmoid"
 	} else if p <= 10 {
-		return NEATSigmoidFunc, "NEAT Sigmoid"
+		return NEATSigmoidFunc, "NEAT sigmoid"
 	} else if p <= 6 {
 		return BipolarSigmoidFunc, "Bipolar sigmoid"
 	} else if p <= 7 {
@@ -48,6 +48,8 @@ func RandomFunc() (ActivationFunction, string) {
 		return ExponentiationFunc, "Exponentiation"
 	} else if p <= 12 {
 		return TetrationFunc, "Second Tetration"
+	} else if p <= 13 {
+		return SawFunc, "Sawtooth wave"
 	} else {
 		return IdentityFunc, "Identity"
 	}
@@ -55,9 +57,9 @@ func RandomFunc() (ActivationFunction, string) {
 
 func FuncByName(name string) ActivationFunction {
 	switch name {
-	case "Sine":
+	case "Sine wave":
 		return SinFunc
-	case "Double-period sine":
+	case "Double-period sine wave":
 		return Sin2Func
 	case "Absolute value":
 		return AbsFunc
@@ -67,7 +69,7 @@ func FuncByName(name string) ActivationFunction {
 		return GaussianFunc
 	case "Sigmoid":
 		return SigmoidFunc
-	case "NEAT Sigmoid":
+	case "NEAT sigmoid":
 		return NEATSigmoidFunc
 	case "Bipolar sigmoid":
 		return BipolarSigmoidFunc
@@ -81,6 +83,8 @@ func FuncByName(name string) ActivationFunction {
 		return ExponentiationFunc
 	case "Second Tetration":
 		return TetrationFunc
+	case "Sawtooth wave":
+		return SawFunc
 	default:
 		return IdentityFunc
 	}
@@ -118,8 +122,12 @@ func QuadraticFunc(x float64) float64 {
 	return x * x
 }
 
-func StepFunc(x float64) float64 {
+func SawFunc(x float64) float64 {
 	return math.Mod(x, 1)
+}
+
+func StepFunc(x float64) float64 {
+	return math.Floor(x*10) / 10
 }
 
 func InversionFunc(x float64) float64 {
@@ -127,7 +135,8 @@ func InversionFunc(x float64) float64 {
 }
 
 func ExponentiationFunc(x float64) float64 {
-	return math.Exp(x)
+	// x-1 so that |f(x)| on (-1, 1) stays <= 1
+	return math.Exp(x - 1)
 }
 
 func TetrationFunc(x float64) float64 {

@@ -85,6 +85,7 @@ func drawNode(x, y int, label string, font image.Image, canvas *image.RGBA) {
 	}
 }
 
+// TODO: draw direction
 func drawEdge(x0, y0, x1, y1 int, label string, weight float64, font image.Image, canvas *image.RGBA) {
 	x := float64(x0)
 	y := float64(y0)
@@ -293,6 +294,7 @@ func (n *Network) SeparateIntoLayers() [][]*Node {
 	return layers
 }
 
+// TODO: label nodes with activation function, support nodeId > 999
 func (n *Network) Draw(fName string) error {
 	layers := n.SeparateIntoLayers()
 	maxDepth := len(layers)
