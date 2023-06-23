@@ -3,6 +3,7 @@ package log
 import "fmt"
 
 const DEBUG = true
+const DEBUG_EXPERIMENT = false
 
 // TODO: better logging solution
 // e.g.

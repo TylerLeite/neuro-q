@@ -70,6 +70,13 @@ func (g *Genome) Copy() ma.GeneticCode {
 		newGenome.Connections[i] = v.Copy()
 	}
 
+	if g.ActivationFunctions != nil {
+		newGenome.ActivationFunctions = make(map[uint]string)
+		for k, v := range g.ActivationFunctions {
+			newGenome.ActivationFunctions[k] = v
+		}
+	}
+
 	copy(newGenome.SensorNodes, g.SensorNodes)
 	copy(newGenome.HiddenNodes, g.HiddenNodes)
 	copy(newGenome.OutputNodes, g.OutputNodes)
@@ -119,8 +126,16 @@ func (g *Genome) ToString() string {
 	}
 	edges = edges[:len(edges)-1] + "]"
 
+	nodes := ""
+	if g.ActivationFunctions != nil {
+		nodes = "\n"
+		for nodeId, fnStr := range g.ActivationFunctions {
+			nodes += fmt.Sprintf("\t%d: %s\n", nodeId, fnStr)
+		}
+	}
+
 	// Shouldn't need to include nodes in the representation. That would be redundant considering nodes are generated based on edges
-	return edges
+	return edges + nodes
 }
 
 // TODO: bias nodes
@@ -137,11 +152,13 @@ func (g *Genome) NodesToString() string {
 	}
 	nodes = nodes[:len(nodes)-1] + "]\n"
 
-	nodes += "Hidden: ["
-	for _, v := range g.HiddenNodes {
-		nodes += fmt.Sprintf("%d ", v)
+	if len(g.HiddenNodes) > 0 {
+		nodes += "Hidden: ["
+		for _, v := range g.HiddenNodes {
+			nodes += fmt.Sprintf("%d ", v)
+		}
+		nodes = nodes[:len(nodes)-1] + "]\n"
 	}
-	nodes = nodes[:len(nodes)-1] + "]\n"
 
 	return nodes
 }
@@ -181,21 +198,36 @@ const (
 	MutationAddConnection
 	MutationAddNode
 	MutationMutateWeights
+	MutationChangeAFunction
+	MutationDisableConnection
+)
+
+const (
+	NoMutationStr                = "No mutation"
+	MutationAddConnectionStr     = "Add a connection"
+	MutationAddNodeStr           = "Add a node"
+	MutationMutateWeightsStr     = "Mutate weights"
+	MutationChangeAFunctionStr   = "Change an activation function"
+	MutationDisableConnectionStr = "Disable a mutation"
 )
 
 var MutationTypeToString = map[ma.MutationType]string{
-	NoMutation:            "No Mutation",
-	MutationAddConnection: "Add Connection",
-	MutationAddNode:       "Add Node",
-	MutationMutateWeights: "Mutate Weights",
+	NoMutation:                NoMutationStr,
+	MutationAddConnection:     MutationAddConnectionStr,
+	MutationAddNode:           MutationAddNodeStr,
+	MutationMutateWeights:     MutationMutateWeightsStr,
+	MutationChangeAFunction:   MutationChangeAFunctionStr,
+	MutationDisableConnection: MutationDisableConnectionStr,
 }
 
 func (g *Genome) ListMutations() map[string]ma.MutationType {
 	// Maybe just send MutationTypeToString?
 	m := make(map[string]ma.MutationType)
-	m["Add Connection"] = MutationAddConnection
-	m["Add Node"] = MutationAddNode
-	m["Mutate Weights"] = MutationMutateWeights
+	m[MutationAddConnectionStr] = MutationAddConnection
+	m[MutationAddNodeStr] = MutationAddNode
+	m[MutationMutateWeightsStr] = MutationMutateWeights
+	m[MutationChangeAFunctionStr] = MutationChangeAFunction
+	m[MutationDisableConnectionStr] = MutationDisableConnection
 	return m
 }
 
@@ -227,6 +259,10 @@ func (g *Genome) Mutate(typ ma.MutationType, args interface{}) {
 		g.AddNode()
 	case MutationMutateWeights:
 		g.MutateWeights()
+	case MutationChangeAFunction:
+		g.MutateActivation()
+	case MutationDisableConnection:
+		g.DisableConnection()
 	default:
 		// TODO: unknown mutation type error
 		fmt.Printf("ERROR: Unknown mutation type: %d", typ)
@@ -382,11 +418,6 @@ func (g *Genome) AddNode() error {
 
 	// Need to add a node between the two nodes of the existing connection. Figure out what to call that node
 	nextNode := uint(len(g.SensorNodes) + len(g.HiddenNodes) + len(g.OutputNodes))
-	// var nextNode uint
-	// if len(g.HiddenNodes) > 0 {
-	// } else {
-	// 	nextNode = uint(len(g.SensorNodes) + len(g.OutputNodes))
-	// }
 
 	log.Book(fmt.Sprintf("Next node is %d\n", nextNode), log.DEBUG, log.DEBUG_ADD_NODE)
 
@@ -448,6 +479,24 @@ func (g *Genome) MutateWeights() {
 			edgeGene.Weight = g.RandomWeight()
 		}
 	}
+}
+
+func (g *Genome) MutateActivation() {
+	if g.ActivationFunctions == nil {
+		log.Book("Tried MutationChangeAFunction on a genome with nil activation function map\n", log.DEBUG, log.DEBUG_MUTATION)
+		return
+	}
+
+	// Select a random node with equal probability regardless of layer
+	nNodes := len(g.SensorNodes) + len(g.HiddenNodes) + len(g.OutputNodes)
+	randi := rand.Intn(nNodes)
+
+	_, functionString := RandomFunc()
+	g.ActivationFunctions[uint(randi)] = functionString
+}
+
+func (g *Genome) DisableConnection() {
+	// randi := rand.Intn(len(g.Connections))
 }
 
 type boolpair []bool

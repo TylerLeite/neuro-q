@@ -161,6 +161,7 @@ func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 		SensorNodes: make([]uint, 0),
 		HiddenNodes: make([]uint, 0),
 		OutputNodes: make([]uint, 0),
+		UsesBias:    g1.UsesBias, // if g1 uses bias, g2 sure ought to as well
 	}
 
 	// Also need to crossover activation functions, if parents use this feature
@@ -351,7 +352,7 @@ func (n *Network) Activate(inputs []float64, sensors, outputs []*Node) error {
 		sanity -= 1
 	}
 
-	log.Book(fmt.Sprintf("\nProp trace\n%s\nGenome:\n%s\n%s\n", n.ToString(), n.DNA.NodesToString(), n.DNA.ToString()), log.DEBUG, log.DEBUG_PROPAGATION)
+	log.Book(fmt.Sprintf("\nProp trace\n%s\nGenome:\n\t%s\n%s\n", n.ToString(), n.DNA.NodesToString(), n.DNA.ToString()), log.DEBUG, log.DEBUG_PROPAGATION)
 
 	if sanity <= 0 {
 		return errors.New("canceling activation, too many loops in the network")

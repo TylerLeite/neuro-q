@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"sync"
 
 	"github.com/TylerLeite/neuro-q/log"
 )
@@ -110,8 +111,12 @@ func (p *Population) Generate() {
 	p.Species = make([]*Species, 1)
 	p.Species[0] = NewSpecies(p)
 	for i := 0; i < p.Size; i += 1 {
+		log.Book(fmt.Sprintf("Generating %d/%d:\n", i, p.Size), log.DEBUG, log.DEBUG_GENERATE)
+
 		newOrganism := p.Seed.Copy()
 		newOrganism.GeneticCode().Randomize()
+
+		log.Book(fmt.Sprintf("\t%s\n", newOrganism.GeneticCode().ToString()), log.DEBUG, log.DEBUG_GENERATE)
 
 		p.Species[0].Members = append(p.Species[0].Members, newOrganism)
 	}
@@ -195,26 +200,43 @@ func (p *Population) Epoch() ([]GeneticCode, []float64, error) {
 
 	// TODO: sort by max fitness, kill off unfit species
 	// TODO: save champion of culled species, add to a random new species
+	var wg sync.WaitGroup
+	wg.Add(len(p.Species))
+
 	for j := len(p.Species) - 1; j >= 0; j -= 1 {
-		species := p.Species[j]
-		species.UpdateFitnessHistory()
-		log.Book(fmt.Sprintf("Local search, %d/%d...\n", j+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
-		species.LocalSearch()
-		if species.HasStagnated() {
-			log.Book(fmt.Sprintf("Stagnation, %d/%d...\n", j+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
-			p.Species = append(p.Species[:j], p.Species[j+1:]...)
-			continue
-		}
-		log.Book(fmt.Sprintf("Selection, %d/%d...\n", j+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
-		species.Selection()
+		go func(j int) {
+			species := p.Species[j]
+			species.UpdateFitnessHistory()
+			log.Book(fmt.Sprintf("Local search, %d/%d...\n", j+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
+			species.LocalSearch()
+			if species.HasStagnated() {
+				log.Book(fmt.Sprintf("Stagnation, %d/%d...\n", j+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
+				p.Species = append(p.Species[:j], p.Species[j+1:]...)
+			} else {
+				log.Book(fmt.Sprintf("Selection, %d/%d...\n", j+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
+				species.Selection()
+			}
+
+			wg.Done()
+		}(j)
 	}
+
+	wg.Wait()
+
+	wg.Add(len(p.Species))
 
 	// Need another loop so recombination happens after all stagnant species are culled
 	culledPopulationCount := float64(p.CountMembers())
 	for i, species := range p.Species {
-		log.Book(fmt.Sprintf("Recombination, %d/%d...\n", i+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
-		species.Recombination(culledPopulationCount)
+		go func(i int, species *Species) {
+			log.Book(fmt.Sprintf("Recombination, %d/%d...\n", i+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
+			species.Recombination(culledPopulationCount)
+
+			wg.Done()
+		}(i, species)
 	}
+
+	wg.Wait()
 
 	log.Book("Separate into species...\n", log.DEBUG, log.DEBUG_EPOCH)
 	p.SeparateIntoSpecies()
@@ -226,7 +248,7 @@ func (p *Population) Epoch() ([]GeneticCode, []float64, error) {
 		}
 	}
 	if massExtinct {
-		return nil, nil, errors.New("Science went too far")
+		return nil, nil, errors.New("science went too far")
 	}
 
 	log.Book("Champion fitness per species:\n", log.DEBUG, log.DEBUG_EPOCH)

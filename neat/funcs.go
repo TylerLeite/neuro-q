@@ -17,73 +17,91 @@ func Seed(s int64) {
 
 type ActivationFunction func(float64) float64
 
+const (
+	SinStr            = "Sine wave"
+	Sin2Str           = "Double-period sine wave"
+	AbsStr            = "Absolute value"
+	NullStr           = "Null function"
+	GaussianStr       = "Gaussian function"
+	SigmoidStr        = "Sigmoid"
+	NEATSigmoidStr    = "NEAT sigmoid"
+	BipolarSigmoidStr = "Bipolar sigmoid"
+	QuadraticStr      = "Quadratic"
+	StepStr           = "Step function"
+	InversionStr      = "Negative"
+	ExponentiationStr = "Exponentiation"
+	TetrationStr      = "Second Tetration"
+	SawStr            = "Sawtooth wave"
+	IdentityStr       = "Identity"
+)
+
 // TODO: Use an enum for function names
 func RandomFunc() (ActivationFunction, string) {
 	const totalFunctions = 15
 
 	p := randi() % totalFunctions
 	if p <= 0 {
-		return SinFunc, "Sine eave"
+		return SinFunc, SinStr
 	} else if p <= 1 {
-		return Sin2Func, "Double-period sine wave"
+		return Sin2Func, Sin2Str
 	} else if p <= 2 {
-		return AbsFunc, "Absolute value"
+		return AbsFunc, AbsStr
 	} else if p <= 3 {
-		return NullFunc, "Null function"
+		return NullFunc, NullStr
 	} else if p <= 4 {
-		return GaussianFunc, "Gaussian function"
+		return GaussianFunc, GaussianStr
 	} else if p <= 5 {
-		return SigmoidFunc, "Sigmoid"
+		return SigmoidFunc, SigmoidStr
 	} else if p <= 10 {
-		return NEATSigmoidFunc, "NEAT sigmoid"
+		return NEATSigmoidFunc, NEATSigmoidStr
 	} else if p <= 6 {
-		return BipolarSigmoidFunc, "Bipolar sigmoid"
+		return BipolarSigmoidFunc, BipolarSigmoidStr
 	} else if p <= 7 {
-		return QuadraticFunc, "Quadratic"
+		return QuadraticFunc, QuadraticStr
 	} else if p <= 8 {
-		return StepFunc, "Step function"
+		return StepFunc, StepStr
 	} else if p <= 9 {
-		return InversionFunc, "Negative"
+		return InversionFunc, InversionStr
 	} else if p <= 11 {
-		return ExponentiationFunc, "Exponentiation"
+		return ExponentiationFunc, ExponentiationStr
 	} else if p <= 12 {
-		return TetrationFunc, "Second Tetration"
+		return TetrationFunc, TetrationStr
 	} else if p <= 13 {
-		return SawFunc, "Sawtooth wave"
+		return SawFunc, SawStr
 	} else {
-		return IdentityFunc, "Identity"
+		return IdentityFunc, IdentityStr
 	}
 }
 
 func FuncByName(name string) ActivationFunction {
 	switch name {
-	case "Sine wave":
+	case SinStr:
 		return SinFunc
-	case "Double-period sine wave":
+	case Sin2Str:
 		return Sin2Func
-	case "Absolute value":
+	case AbsStr:
 		return AbsFunc
-	case "Null function":
+	case NullStr:
 		return NullFunc
-	case "Gaussian function":
+	case GaussianStr:
 		return GaussianFunc
-	case "Sigmoid":
+	case SigmoidStr:
 		return SigmoidFunc
-	case "NEAT sigmoid":
+	case NEATSigmoidStr:
 		return NEATSigmoidFunc
-	case "Bipolar sigmoid":
+	case BipolarSigmoidStr:
 		return BipolarSigmoidFunc
-	case "Quadratic":
+	case QuadraticStr:
 		return QuadraticFunc
-	case "Step function":
+	case StepStr:
 		return StepFunc
-	case "Negative":
+	case InversionStr:
 		return InversionFunc
-	case "Exponentiation":
+	case ExponentiationStr:
 		return ExponentiationFunc
-	case "Second Tetration":
+	case TetrationStr:
 		return TetrationFunc
-	case "Sawtooth wave":
+	case SawStr:
 		return SawFunc
 	default:
 		return IdentityFunc
@@ -140,7 +158,8 @@ func ExponentiationFunc(x float64) float64 {
 }
 
 func TetrationFunc(x float64) float64 {
-	return math.Pow(x, x)
+	// Sadly, tetrating a negative number gives you a complex result :/
+	return math.Pow(math.Abs(x), x)
 }
 
 func IdentityFunc(x float64) float64 {
