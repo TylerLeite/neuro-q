@@ -9,6 +9,7 @@ import (
 )
 
 func main() {
+
 	var experiment = flag.String("test", "xor", "name of the test to run")
 	flag.Parse()
 
@@ -17,6 +18,8 @@ func main() {
 	switch *experiment {
 	case "xor":
 		neat.XorEvolution()
+	case "cppn_test":
+		cppn.TestActivation()
 	case "noise":
 		cppn.NoiseEvolution()
 	case "mandelbrot":

@@ -155,12 +155,13 @@ func ActivateNetwork(n *neat.Network, dimensions []int, otherInputs []NetworkInp
 		dimensionalInputs := make([]float64, len(dimensions))
 
 		// Can't have an arbitrarily-nested for loop, so unroll indices here
-		indices[0] += 1
-		for j := 0; j < len(dimensions)-1; j += 1 {
-			// Don't need to actually check the last dimension since it can't roll over
-			if indices[j] >= dimensions[j] {
-				indices[j] = 0
-				indices[j+1] += 1
+		for j := 0; j < len(dimensions); j += 1 {
+			if j < len(dimensions)-1 {
+				// Don't need to actually check the last dimension since it can't roll over
+				if indices[j] >= dimensions[j] {
+					indices[j] = 0
+					indices[j+1] += 1
+				}
 			}
 
 			// Scale input to range [-1,1]
@@ -196,6 +197,8 @@ func ActivateNetwork(n *neat.Network, dimensions []int, otherInputs []NetworkInp
 		}
 
 		outMatrix[i] = outMatrixEntry
+
+		indices[0] += 1
 	}
 
 	return outMatrix
@@ -219,10 +222,12 @@ func NoiseFitness(o ma.Organism) float64 {
 	for y := 0; y < h; y += 1 {
 		for x := 0; x < w; x += 1 {
 			pix := networkOutput[x+w*y]
-			r := uint8(math.Floor(16 * pix[0]))
-			g := uint8(math.Floor(16 * pix[1]))
-			b := uint8(math.Floor(16 * pix[2]))
+
+			r := uint8(math.Min(255, 16*math.Floor(math.Abs(pix[0])*16)))
+			g := uint8(math.Min(255, 16*math.Floor(math.Abs(pix[1])*16)))
+			b := uint8(math.Min(255, 16*math.Floor(math.Abs(pix[2])*16)))
 			colorString := fmt.Sprintf("%X.%X.%X", r, g, b)
+
 			if _, ok := usedColors[colorString]; !ok {
 				usedColors[colorString] = true
 				fitness += 1
@@ -251,7 +256,12 @@ func DrawNoiseImage(networkOutput [][]float64, fName string) error {
 	for y := 0; y < h; y += 1 {
 		for x := 0; x < w; x += 1 {
 			pix := networkOutput[x+w*y]
-			img.Set(x, y, color.RGBA{uint8(pix[0] * 16), uint8(pix[1] * 16), uint8(pix[2] * 16), 0xff})
+			img.Set(x, y, color.RGBA{
+				uint8(math.Min(255, 16*math.Floor(math.Abs(pix[0])*16))),
+				uint8(math.Min(255, 16*math.Floor(math.Abs(pix[1])*16))),
+				uint8(math.Min(255, 16*math.Floor(math.Abs(pix[2])*16))),
+				0xff,
+			})
 		}
 	}
 
@@ -270,21 +280,46 @@ func DrawNoiseImage(networkOutput [][]float64, fName string) error {
 	return nil
 }
 
+func TestActivation() {
+	g := neat.NewGenome(2, 3, true, -1.0, 1.0)
+	g.ActivationFunctions = map[uint]string{
+		0: "Identity",
+		1: "Identity",
+		2: "Identity",
+		3: "Identity",
+		4: "Identity",
+		5: "Identity",
+	}
+	g.Connections = []*neat.EdgeGene{
+		neat.NewEdgeGene(1, 3, 1, neat.NoMutation),
+		neat.NewEdgeGene(2, 4, 1, neat.NoMutation),
+		neat.NewEdgeGene(0, 3, 0, neat.NoMutation),
+		neat.NewEdgeGene(1, 5, 0.5, neat.NoMutation),
+		neat.NewEdgeGene(2, 5, 0.5, neat.NoMutation),
+	}
+
+	n := neat.NewNetwork(g, nil)
+	// o := ActivateNetwork(n, []int{32, 32}, nil)
+	DrawNoiseNetwork(n, "cppn/drawn/test.png")
+
+}
+
 func NoiseEvolution() {
 	popConfig := config.PopulationDefault()
 	popConfig.Size = 64
-	popConfig.DistanceThreshold = 3
+	popConfig.DistanceThreshold = 1
 	popConfig.DistanceThresholdEpsilon = 0.1
 	popConfig.TargetMinSpecies = 7
 	popConfig.TargetMaxSpecies = 13
-	popConfig.RecombinationPercent = 0.8
-	popConfig.LocalSearchGenerations = 8
+	popConfig.RecombinationPercent = 0.75
+	popConfig.LocalSearchGenerations = 0
+	popConfig.SharingFunctionConstants = []float64{1, 2, 0.4, 1}
 
 	cppnConfig := config.CPPNDefault()
 	cppnConfig.SensorNodes = 2
 	cppnConfig.OutputNodes = 3
-	cppnConfig.MinWeight = -15
-	cppnConfig.MaxWeight = 15
+	cppnConfig.MinWeight = -1
+	cppnConfig.MaxWeight = 1
 	cppnConfig.MutationRatios = map[ma.MutationType]float64{
 		neat.MutationAddConnection:   0.2,
 		neat.MutationAddNode:         0.1,
