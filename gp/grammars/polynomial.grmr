@@ -1,0 +1,27 @@
+! -> Start
+Start -> op K K
+Start -> op
+K -> const
+K -> var
+K -> op K K
+K -> - 0 K
+K -> / 1 K
+op -> +
+op -> -
+op -> *
+op -> /
+const -> 0
+const -> 1
+0 -> _
+1 -> _
+var -> x
+var -> y
+x -> _
+y -> _
+~ -> !
+~ -> _
+~ -> ~
+~ -> Start
+~ -> K
+~ -> op
+~ -> const

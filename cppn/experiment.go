@@ -80,8 +80,6 @@ func Evolution(
 	fmt.Println("Generating...")
 	p.Generate()
 
-	ErrorCheck(p)
-
 	// Randomize activation functions of seed members
 	for _, o := range p.Members() {
 		network := o.(*neat.Network)
@@ -95,14 +93,11 @@ func Evolution(
 		network.ForceCompile()
 	}
 
-	ErrorCheck(p)
-
 	G := popCfg.MaxEpochs
 	for i := 0; i < G; i += 1 {
 		fmt.Printf("New generation, %d/%d [%d species] dt=%.2g\n", i+1, G, len(p.Species), p.DistanceThreshold)
 
 		p.Epoch()
-		ErrorCheck(p)
 
 		// TODO: should this be a binary search?
 		if len(p.Species) > speciesTargetMax {
@@ -465,11 +460,20 @@ func MandelbrotEvolution() {
 		return nil
 	}
 
+	distanceFn := func(args ...float64) float64 {
+		sum := float64(0)
+		for _, n := range args {
+			sum += n * n
+		}
+
+		return math.Sqrt(sum)
+	}
+
 	DrawMandelbrotNetwork := func(o ma.Organism, fName string) error {
 		n := o.(*neat.Network)
 		n.Compile()
 
-		networkOutput := ActivateNetwork(n, []int{w, h}, nil)
+		networkOutput := ActivateNetwork(n, []int{w, h}, []NetworkInputFunction{distanceFn})
 		return DrawMandelbrotImage(networkOutput, fName)
 	}
 
@@ -497,14 +501,4 @@ func MandelbrotEvolution() {
 	}
 
 	Evolution(MandelbrotFitness, DrawMandelbrotNetwork, popConfig, cppnConfig)
-}
-
-func ErrorCheck(p *ma.Population) {
-	for _, member := range p.Members() {
-		network := member.(*neat.Network)
-
-		if network.DNA.ActivationFunctions == nil {
-			panic(fmt.Sprintf("FOund a live one boiz !\n%s\n", network.DNA.ToPretty()))
-		}
-	}
 }
