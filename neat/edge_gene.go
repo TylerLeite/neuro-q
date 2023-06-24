@@ -2,6 +2,7 @@ package neat
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/TylerLeite/neuro-q/ma"
 )
@@ -38,6 +39,39 @@ func (e *EdgeGene) ToString() string {
 		enabledStr = "x"
 	}
 	return fmt.Sprintf("{%d %s %d,%d (%d) @ %.2f}", e.InnovationNumber, enabledStr, e.InNode, e.OutNode, e.Origin, e.Weight)
+}
+
+var b64 = []string{
+	"0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+	"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+	"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+	"-", "_",
+}
+
+func uintToBase64(n uint, padding int) string {
+	digits := ""
+	for n > 0 {
+		digits = b64[n%64] + digits
+		n = n / 64
+	}
+
+	for len(digits) < padding {
+		digits = "0" + digits
+	}
+
+	return digits
+}
+
+func (e *EdgeGene) ToRep(padTo int) string {
+	if !e.Enabled {
+		return ""
+	}
+
+	return fmt.Sprintf("%s%s%s",
+		uintToBase64(e.InNode, padTo),
+		uintToBase64(e.OutNode, padTo),
+		uintToBase64(uint(math.Float64bits(e.Weight)), 11),
+	)
 }
 
 func (e *EdgeGene) InnovationKey() string {

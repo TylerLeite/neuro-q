@@ -201,7 +201,7 @@ func XorEvolution() error {
 			if math.IsInf(championFitness, 1) {
 				fmt.Println("Found a fully verified network!")
 				fmt.Println(championNetwork.ToString())
-				fmt.Println(championNetwork.DNA.ToString())
+				fmt.Println(championNetwork.DNA.ToPretty())
 				fullyVerified = true
 			}
 		}

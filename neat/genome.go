@@ -118,8 +118,37 @@ func (g *Genome) Randomize() {
 	g.PopulateNodeSlices()
 }
 
-// TODO: More readable version, ToPretty -> remove spaces from this
 func (g *Genome) ToString() string {
+	// Need to know how many nodes we have to find out how many digits we need per node
+	nNodes := len(g.SensorNodes) + len(g.HiddenNodes) + len(g.OutputNodes)
+	if g.UsesBias {
+		nNodes += 1
+	}
+
+	// log_4(nNodes) by change of base
+	digitsInBase64 := int(math.Floor(math.Log(float64(nNodes))/math.Log(4)) + 1)
+
+	// shouldnt need more than 10 digits in base64, i reckon, but why not be safe?
+	edges := fmt.Sprintf("%x", digitsInBase64)
+	for _, v := range g.Connections {
+		edges += v.ToRep(digitsInBase64)
+	}
+
+	nodes := ""
+	if g.ActivationFunctions != nil {
+		if len(g.ActivationFunctions) == 0 {
+			nodes = "?"
+		} else {
+			for _, fnStr := range g.ActivationFunctions {
+				nodes += RepByName(fnStr)
+			}
+		}
+	}
+
+	return edges + "." + nodes
+}
+
+func (g *Genome) ToPretty() string {
 	edges := "["
 	for _, v := range g.Connections {
 		edges += v.ToString() + " "
@@ -289,7 +318,7 @@ func (g *Genome) checkForCycles(in, out int) bool {
 		outNode := edge.OutNode
 		if outNode == uint(in) {
 			foundACycle = true
-			log.Book(fmt.Sprintf("Found a cycle :/\n%s\n", g.ToString()), log.DEBUG, log.DEBUG_ADD_CONNECTION)
+			log.Book(fmt.Sprintf("Found a cycle :/\n%s\n", g.ToPretty()), log.DEBUG, log.DEBUG_ADD_CONNECTION)
 			break
 		} else {
 			// TODO: so nested :(

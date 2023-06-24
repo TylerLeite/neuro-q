@@ -80,6 +80,8 @@ func Evolution(
 	fmt.Println("Generating...")
 	p.Generate()
 
+	ErrorCheck(p)
+
 	// Randomize activation functions of seed members
 	for _, o := range p.Members() {
 		network := o.(*neat.Network)
@@ -93,26 +95,30 @@ func Evolution(
 		network.ForceCompile()
 	}
 
+	ErrorCheck(p)
+
 	G := popCfg.MaxEpochs
 	for i := 0; i < G; i += 1 {
 		fmt.Printf("New generation, %d/%d [%d species] dt=%.2g\n", i+1, G, len(p.Species), p.DistanceThreshold)
 
 		p.Epoch()
+		ErrorCheck(p)
 
+		// TODO: should this be a binary search?
 		if len(p.Species) > speciesTargetMax {
-			p.DistanceThreshold += distanceThresholdEpsilon
+			p.DistanceThreshold *= (1 + distanceThresholdEpsilon)
 		} else if len(p.Species) < speciesTargetMin {
-			p.DistanceThreshold -= distanceThresholdEpsilon
+			p.DistanceThreshold *= (1 - distanceThresholdEpsilon)
 		}
 
+		fmt.Println("Champion Genomes:")
 		for j, species := range p.Species {
 			championNetwork := species.Champion().(*neat.Network)
 			championNetwork.Draw(fmt.Sprintf("cppn/drawn/%d_%d.bmp", i, j))
 			drawFn(championNetwork, fmt.Sprintf("cppn/drawn/%d_%d.png", i, j))
 
 			fitness := fn(championNetwork)
-
-			fmt.Printf("\tSpecies %d fitness = %.4g\n", j+1, fitness)
+			fmt.Printf("\t%d (fitness = %.4g): %s\n", j+1, fitness, championNetwork.DNA.ToString())
 		}
 	}
 }
@@ -388,13 +394,13 @@ func MandelbrotEvolution() {
 		minTarget := math.Inf(1)
 		maxOut := math.Inf(-1)
 		minOut := math.Inf(1)
-		const errorEpsilon = 0.1
+		const errorEpsilon = 0.5
 
 		for y := 0; y < h; y += 1 {
 			for x := 0; x < w; x += 1 {
 				value := math.Floor(128 * (networkOutput[x+w*y][0] + 1))
 
-				scaledValue := value / 255.0
+				scaledValue := math.Abs(value) / 255.0
 				scaledTarget := float64(mandelbrotPixels[y][x]) / 255.0
 
 				if scaledValue > maxOut {
@@ -491,4 +497,14 @@ func MandelbrotEvolution() {
 	}
 
 	Evolution(MandelbrotFitness, DrawMandelbrotNetwork, popConfig, cppnConfig)
+}
+
+func ErrorCheck(p *ma.Population) {
+	for _, member := range p.Members() {
+		network := member.(*neat.Network)
+
+		if network.DNA.ActivationFunctions == nil {
+			panic(fmt.Sprintf("FOund a live one boiz !\n%s\n", network.DNA.ToPretty()))
+		}
+	}
 }

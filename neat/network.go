@@ -123,18 +123,21 @@ func (n *Network) NewFromGeneticCode(geneticCode ma.GeneticCode) ma.Organism {
 	return ma.Organism(out)
 }
 
-func insertActivation(activationFunctions map[uint]ActivationFunction, g *Genome, i int) {
-	if activationFunctions != nil {
-		if _, ok := activationFunctions[g.Connections[i].InNode]; !ok {
-			activationFunctions[g.Connections[i].InNode] = g.ActivationFunctionOf(g.Connections[i].InNode)
-		}
-		if _, ok := activationFunctions[g.Connections[i].OutNode]; !ok {
-			activationFunctions[g.Connections[i].OutNode] = g.ActivationFunctionOf(g.Connections[i].OutNode)
+func (n *Network) Crossover(others []ma.Organism) ma.Organism {
+	insertActivation := func(child, parent *Genome, i int) {
+		if parent.ActivationFunctions != nil {
+			inNode := parent.Connections[i].InNode
+			outNode := parent.Connections[i].OutNode
+			if _, ok := child.ActivationFunctions[inNode]; !ok {
+				child.ActivationFunctions[inNode] = parent.ActivationFunctions[inNode]
+			}
+
+			if _, ok := child.ActivationFunctions[outNode]; !ok {
+				child.ActivationFunctions[outNode] = parent.ActivationFunctions[outNode]
+			}
 		}
 	}
-}
 
-func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 	// TODO: either check to make sure others is only 1 element long or support N >= 1 parents
 	n2 := others[0].(*Network)
 
@@ -156,7 +159,7 @@ func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 	g1.SortConnections()
 	g2.SortConnections()
 
-	g := Genome{
+	g := &Genome{
 		Connections: make([]*EdgeGene, 0),
 		SensorNodes: make([]uint, 0),
 		HiddenNodes: make([]uint, 0),
@@ -165,9 +168,8 @@ func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 	}
 
 	// Also need to crossover activation functions, if parents use this feature
-	var activationFunctions map[uint]ActivationFunction
 	if g1.ActivationFunctions != nil && g2.ActivationFunctions != nil { // If one is nil, both should be
-		activationFunctions = make(map[uint]ActivationFunction)
+		g.ActivationFunctions = make(map[uint]string)
 	}
 
 	// Line up genes by innovation number
@@ -181,7 +183,7 @@ func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 				// This loop will be empty if i2 >= len(g2.Connection)
 				for ; i2 < len(g2.Connections); i2 += 1 {
 					g.Connections = append(g.Connections, g2.Connections[i2].Copy())
-					insertActivation(activationFunctions, g2, i2)
+					insertActivation(g, g2, i2)
 				}
 			}
 			break
@@ -189,7 +191,7 @@ func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 			if n == moreFitParent {
 				for ; i1 < len(g1.Connections); i1 += 1 {
 					g.Connections = append(g.Connections, g1.Connections[i1].Copy())
-					insertActivation(activationFunctions, g1, i1)
+					insertActivation(g, g1, i1)
 				}
 			}
 			break
@@ -199,10 +201,10 @@ func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 			// Inherit a gene randomly when there is an innovation number  match
 			if rand.Intn(2) == 0 {
 				g.Connections = append(g.Connections, g1.Connections[i1].Copy())
-				insertActivation(activationFunctions, g1, i1)
+				insertActivation(g, g1, i1)
 			} else {
 				g.Connections = append(g.Connections, g2.Connections[i2].Copy())
-				insertActivation(activationFunctions, g2, i2)
+				insertActivation(g, g2, i2)
 			}
 
 			// TODO: check gene disable safety
@@ -226,14 +228,14 @@ func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 			// Inherit disjoint genes from the more fit parent
 			if n == moreFitParent {
 				g.Connections = append(g.Connections, g1.Connections[i1].Copy())
-				insertActivation(activationFunctions, g1, i1)
+				insertActivation(g, g1, i1)
 			}
 
 			i1 += 1
 		} else if g1.Connections[i1].InnovationNumber > g2.Connections[i2].InnovationNumber {
 			if n2 == moreFitParent {
 				g.Connections = append(g.Connections, g2.Connections[i2].Copy())
-				insertActivation(activationFunctions, g2, i2)
+				insertActivation(g, g2, i2)
 
 			}
 
@@ -242,7 +244,7 @@ func (n *Network) Crossover(others []ma.Organism) ma.Organism {
 	}
 
 	// Make an organism out of this genome
-	return n.NewFromGeneticCode(ma.GeneticCode(&g))
+	return n.NewFromGeneticCode(ma.GeneticCode(g))
 }
 
 func (n *Network) GeneticCode() ma.GeneticCode {
@@ -352,7 +354,7 @@ func (n *Network) Activate(inputs []float64, sensors, outputs []*Node) error {
 		sanity -= 1
 	}
 
-	log.Book(fmt.Sprintf("\nProp trace\n%s\nGenome:\n\t%s\n%s\n", n.ToString(), n.DNA.NodesToString(), n.DNA.ToString()), log.DEBUG, log.DEBUG_PROPAGATION)
+	log.Book(fmt.Sprintf("\nProp trace\n%s\nGenome:\n\t%s\n%s\n", n.ToString(), n.DNA.NodesToString(), n.DNA.ToPretty()), log.DEBUG, log.DEBUG_PROPAGATION)
 
 	if sanity <= 0 {
 		return errors.New("canceling activation, too many loops in the network")

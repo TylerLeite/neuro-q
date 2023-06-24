@@ -35,6 +35,24 @@ const (
 	IdentityStr       = "Identity"
 )
 
+const (
+	SinRep            = "0"
+	Sin2Rep           = "1"
+	AbsRep            = "2"
+	NullRep           = "3"
+	GaussianRep       = "4"
+	SigmoidRep        = "5"
+	NEATSigmoidRep    = "6"
+	BipolarSigmoidRep = "7"
+	QuadraticRep      = "8"
+	StepRep           = "9"
+	InversionRep      = "A"
+	ExponentiationRep = "B"
+	TetrationRep      = "C"
+	SawRep            = "D"
+	IdentityRep       = "E"
+)
+
 // TODO: Use an enum for function names
 func RandomFunc() (ActivationFunction, string) {
 	const totalFunctions = 15
@@ -105,6 +123,41 @@ func FuncByName(name string) ActivationFunction {
 		return SawFunc
 	default:
 		return IdentityFunc
+	}
+}
+
+func RepByName(name string) string {
+	switch name {
+	case SinStr:
+		return SinRep
+	case Sin2Str:
+		return Sin2Rep
+	case AbsStr:
+		return AbsRep
+	case NullStr:
+		return NullRep
+	case GaussianStr:
+		return GaussianRep
+	case SigmoidStr:
+		return SigmoidRep
+	case NEATSigmoidStr:
+		return NEATSigmoidRep
+	case BipolarSigmoidStr:
+		return BipolarSigmoidRep
+	case QuadraticStr:
+		return QuadraticRep
+	case StepStr:
+		return StepRep
+	case InversionStr:
+		return InversionRep
+	case ExponentiationStr:
+		return ExponentiationRep
+	case TetrationStr:
+		return TetrationRep
+	case SawStr:
+		return SawRep
+	default:
+		return IdentityRep
 	}
 }
 
