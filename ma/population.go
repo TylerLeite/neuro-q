@@ -203,25 +203,32 @@ func (p *Population) Epoch() ([]GeneticCode, []float64, error) {
 	var wg sync.WaitGroup
 	wg.Add(len(p.Species))
 
-	for j := len(p.Species) - 1; j >= 0; j -= 1 {
-		go func(j int) {
-			species := p.Species[j]
+	var stagnatedSpecies []int
+	for i := len(p.Species) - 1; i >= 0; i -= 1 {
+		go func(i int) {
+			species := p.Species[i]
 			species.UpdateFitnessHistory()
-			log.Book(fmt.Sprintf("Local search, %d/%d...\n", j+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
+			log.Book(fmt.Sprintf("Local search, %d/%d...\n", i+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
 			species.LocalSearch()
 			if species.HasStagnated() {
-				log.Book(fmt.Sprintf("Stagnation, %d/%d...\n", j+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
-				p.Species = append(p.Species[:j], p.Species[j+1:]...)
+				log.Book(fmt.Sprintf("Stagnation, %d/%d...\n", i+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
+				stagnatedSpecies = append(stagnatedSpecies, i)
 			} else {
-				log.Book(fmt.Sprintf("Selection, %d/%d...\n", j+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
+				log.Book(fmt.Sprintf("Selection, %d/%d...\n", i+1, len(p.Species)), log.DEBUG, log.DEBUG_EPOCH)
 				species.Selection()
 			}
 
 			wg.Done()
-		}(j)
+		}(i)
 	}
 
 	wg.Wait()
+
+	// Make sure they're descending since we are modifying the slice
+	sort.Sort(sort.Reverse(sort.IntSlice(stagnatedSpecies)))
+	for _, i := range stagnatedSpecies {
+		p.Species = append(p.Species[:i], p.Species[i+1:]...)
+	}
 
 	wg.Add(len(p.Species))
 

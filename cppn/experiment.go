@@ -374,6 +374,7 @@ func MandelbrotEvolution() {
 	f, _ := os.Create("cppn/drawn/mandelbrot.png")
 	png.Encode(f, evalImg)
 
+	// TODO: feature-level comparison for fitness. individual pixels probably not enough information to guide evolution
 	MandelbrotFitness := func(o ma.Organism) float64 {
 		n := o.(*neat.Network)
 		n.Compile()
@@ -467,20 +468,21 @@ func MandelbrotEvolution() {
 	}
 
 	popConfig := config.PopulationDefault()
-	popConfig.Size = 64
-	popConfig.DistanceThreshold = 1
+	popConfig.Size = 128
+	popConfig.MaxEpochs = math.MaxInt
+	popConfig.DistanceThreshold = 4
 	popConfig.DistanceThresholdEpsilon = 0.1
-	popConfig.TargetMinSpecies = 7
-	popConfig.TargetMaxSpecies = 13
+	popConfig.TargetMinSpecies = 14
+	popConfig.TargetMaxSpecies = 26
 	popConfig.RecombinationPercent = 0.75
-	popConfig.LocalSearchGenerations = 0
+	popConfig.LocalSearchGenerations = 8
 	popConfig.SharingFunctionConstants = []float64{1, 2, 0.4, 1}
 
 	cppnConfig := config.CPPNDefault()
 	cppnConfig.SensorNodes = 2
 	cppnConfig.OutputNodes = 3
-	cppnConfig.MinWeight = -1
-	cppnConfig.MaxWeight = 1
+	cppnConfig.MinWeight = -16
+	cppnConfig.MaxWeight = 16
 	cppnConfig.MutationRatios = map[ma.MutationType]float64{
 		neat.MutationAddConnection:   0.2,
 		neat.MutationAddNode:         0.1,
