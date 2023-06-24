@@ -330,161 +330,163 @@ func NoiseEvolution() {
 	Evolution(NoiseFitness, DrawNoiseNetwork, popConfig, cppnConfig)
 }
 
-// func calculateMandelbrotAt(x0, y0, scaleX, scaleY float64) uint8 {
-// 	x0 = 2.47*x0/scaleX - 2.0
-// 	y0 = 2.24*y0/scaleY - 1.12
+func calculateMandelbrotAt(x0, y0, scaleX, scaleY float64) uint8 {
+	x0 = 2.47*x0/scaleX - 2.0
+	y0 = 2.24*y0/scaleY - 1.12
 
-// 	x := x0
-// 	y := y0
+	x := x0
+	y := y0
 
-// 	i := uint8(0)
-// 	for (x*x+y*y <= 2*2) && (i < math.MaxUint8) {
-// 		x, y = x*x-y*y+x0, 2*x*y+y0
-// 		i += 1
-// 	}
+	i := uint8(0)
+	for (x*x+y*y <= 2*2) && (i < math.MaxUint8) {
+		x, y = x*x-y*y+x0, 2*x*y+y0
+		i += 1
+	}
 
-// 	return i
-// }
+	return i
+}
 
 func MandelbrotEvolution() {
-	// const (
-	// 	w = 25 //47
-	// 	h = 22 //4
-	// )
+	const (
+		w = 25 //247
+		h = 22 //224
+	)
 
-	// mandelbrotPixels := make([][]uint8, 224)
-	// for y := 0; y < len(mandelbrotPixels); y += 1 {
-	// 	mandelbrotPixels[y] = make([]uint8, 247)
-	// 	for x := 0; x < len(mandelbrotPixels[y]); x += 1 {
-	// 		mandelbrotPixels[y][x] = calculateMandelbrotAt(float64(x), float64(y), float64(w), float64(h))
-	// 	}
-	// }
+	mandelbrotPixels := make([][]uint8, 224)
+	for y := 0; y < len(mandelbrotPixels); y += 1 {
+		mandelbrotPixels[y] = make([]uint8, 247)
+		for x := 0; x < len(mandelbrotPixels[y]); x += 1 {
+			mandelbrotPixels[y][x] = calculateMandelbrotAt(float64(x), float64(y), float64(w), float64(h))
+		}
+	}
 
-	// evalImg := image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{w, h}})
-	// for x := 0; x < 247; x += 1 {
-	// 	for y := 0; y < 224; y += 1 {
-	// 		value := float64(mandelbrotPixels[y][x])
-	// 		r := uint8(16 * (int(value) % 16))
-	// 		g := uint8(16 * (math.Floor(value / 16)))
-	// 		b := uint8(value)
-	// 		evalImg.Set(x, y, color.RGBA{r, g, b, 0xff})
-	// 	}
-	// }
+	evalImg := image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{w, h}})
+	for x := 0; x < 247; x += 1 {
+		for y := 0; y < 224; y += 1 {
+			value := float64(mandelbrotPixels[y][x])
+			r := uint8(16 * (int(value) % 16))
+			g := uint8(16 * (math.Floor(value / 16)))
+			b := uint8(value)
+			evalImg.Set(x, y, color.RGBA{r, g, b, 0xff})
+		}
+	}
 
-	// f, _ := os.Create("cppn/drawn/mandelbrot.png")
-	// png.Encode(f, evalImg)
+	f, _ := os.Create("cppn/drawn/mandelbrot.png")
+	png.Encode(f, evalImg)
 
-	// drawMandelbrot := func(networkOutput [][]float64, w, h int, fName string) error {
-	// 	n := *neat.NewNetwork(nil, nil)
-	// 	n.Compile()
+	MandelbrotFitness := func(o ma.Organism) float64 {
+		n := o.(*neat.Network)
+		n.Compile()
 
-	// 	filename := ""
+		networkOutput := ActivateNetwork(n, []int{w, h}, nil)
 
-	// 	var (
-	// 		bias *neat.Node
-	// 		inX  *neat.Node
-	// 		inY  *neat.Node
-	// 		inD  *neat.Node
-	// 	)
-	// 	for _, nodeI := range n.DNA.SensorNodes {
-	// 		node := n.Nodes[nodeI]
-	// 		if node.Label == "0" {
-	// 			bias = node
-	// 		} else if node.Label == "1" {
-	// 			inX = node
-	// 		} else if node.Label == "2" {
-	// 			inY = node
-	// 		} else {
-	// 			inD = node
-	// 		}
-	// 	}
+		mse := float64(0)
+		matches := float64(0)
 
-	// 	out := n.Nodes[n.DNA.OutputNodes[0]]
+		maxTarget := math.Inf(-1)
+		minTarget := math.Inf(1)
+		maxOut := math.Inf(-1)
+		minOut := math.Inf(1)
+		const errorEpsilon = 0.1
 
-	// 	var img *image.RGBA
-	// 	if filename != "" {
-	// 		img = image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{w, h}})
-	// 	}
+		for y := 0; y < h; y += 1 {
+			for x := 0; x < w; x += 1 {
+				value := math.Floor(128 * (networkOutput[x+w*y][0] + 1))
 
-	// 	mse := float64(0)
-	// 	matches := float64(0)
+				scaledValue := value / 255.0
+				scaledTarget := float64(mandelbrotPixels[y][x]) / 255.0
 
-	// 	maxTarget := math.Inf(-1)
-	// 	minTarget := math.Inf(1)
-	// 	maxOut := math.Inf(-1)
-	// 	minOut := math.Inf(1)
-	// 	const errorEpsilon = 0.1
+				if scaledValue > maxOut {
+					maxOut = scaledValue
+				}
+				if scaledValue < minOut {
+					minOut = scaledValue
+				}
 
-	// 	for x := 0; x < w; x += 1 {
-	// 		for y := 0; y < h; y += 1 {
-	// 			xs := float64(x)/w - 0.5
-	// 			ys := float64(y)/h - 0.5
-	// 			d := math.Sqrt(xs*xs + ys*ys)
-	// 			inputValues := []float64{1, xs, ys, d}
-	// 			n.Activate(inputValues, []*neat.Node{bias, inX, inY, inD}, []*neat.Node{out})
+				if scaledTarget > maxTarget {
+					maxTarget = scaledTarget
+				}
+				if scaledTarget < minTarget {
+					minTarget = scaledTarget
+				}
 
-	// 			value := math.Floor(128 * (out.Value() + 1))
+				squaredError := (scaledValue - scaledTarget) * (scaledValue - scaledTarget)
+				mse += squaredError
 
-	// 			if math.IsNaN(value) {
-	// 				log.Book(n.ToString(), log.DEBUG)
-	// 				log.Book(n.DNA.ToString(), log.DEBUG)
-	// 				log.Book(fmt.Sprintf("Inputs: {x:%.4g y:%.4g d:%.4g}\n", xs, ys, d), log.DEBUG)
-	// 				panic("NaN network")
-	// 			}
+				if squaredError <= errorEpsilon {
+					matches += 1
+				}
+			}
+		}
 
-	// 			r := uint8(16 * (int(value) % 16))
-	// 			g := uint8(16 * (math.Floor(value / 16)))
-	// 			b := uint8(value)
+		mse /= w * h
+		matches /= w * h
+		da := 1 - ((maxTarget-minTarget)-(maxOut-minOut))*((maxTarget-minTarget)-(maxOut-minOut))
 
-	// 			if filename != "" {
-	// 				img.Set(x, y, color.RGBA{r, g, b, 0xff})
-	// 			}
+		fitness := 1 - mse + 2*matches + 3*da
+		return fitness
+	}
 
-	// 			outScaled := value / 255.0
-	// 			targetScaled := float64(mandelbrotPixels[y][x]) / 255.0
+	DrawMandelbrotImage := func(networkOutput [][]float64, fName string) error {
+		img := image.NewRGBA(image.Rectangle{image.Point{0, 0}, image.Point{w, h}})
 
-	// 			if outScaled > maxOut {
-	// 				maxOut = outScaled
-	// 			}
-	// 			if outScaled < minOut {
-	// 				minOut = outScaled
-	// 			}
+		for y := 0; y < h; y += 1 {
+			for x := 0; x < w; x += 1 {
+				value := math.Floor(128 * (networkOutput[x+w*y][0] + 1))
 
-	// 			if targetScaled > maxTarget {
-	// 				maxTarget = targetScaled
-	// 			}
-	// 			if targetScaled < minTarget {
-	// 				minTarget = targetScaled
-	// 			}
+				img.Set(x, y, color.RGBA{
+					uint8(math.Min(255, 16*math.Floor(math.Abs(float64(int(value)%16))))),
+					uint8(math.Min(255, 16*math.Floor(math.Abs(value/16)))),
+					uint8(math.Min(255, math.Floor(math.Abs(value)))),
+					0xff,
+				})
+			}
+		}
 
-	// 			squaredError := (outScaled - targetScaled) * (outScaled - targetScaled)
-	// 			mse += squaredError
+		f, err := os.Create(fName)
 
-	// 			if squaredError <= errorEpsilon {
-	// 				matches += 1
-	// 			}
-	// 		}
-	// 	}
+		if err != nil {
+			return err
+		}
 
-	// 	mse /= w * h
-	// 	matches /= w * h
-	// 	da := 1 - ((maxTarget-minTarget)-(maxOut-minOut))*((maxTarget-minTarget)-(maxOut-minOut))
+		err = png.Encode(f, img)
 
-	// 	fitness := 1 - mse + 2*matches + 3*da
+		if err != nil {
+			return err
+		}
 
-	// 	if filename != "" {
-	// 		f, _ := os.Create(filename)
-	// 		png.Encode(f, img)
-	// 	}
+		return nil
+	}
 
-	// 	return fitness
-	// }
+	DrawMandelbrotNetwork := func(o ma.Organism, fName string) error {
+		n := o.(*neat.Network)
+		n.Compile()
 
-	// mandelbrotFitness := func(o ma.Organism) float64 {
-	// 	return 0
-	// }
+		networkOutput := ActivateNetwork(n, []int{w, h}, nil)
+		return DrawMandelbrotImage(networkOutput, fName)
+	}
 
-	// popConfig := config.PopulationDefault()
-	// cppnConfig := config.CPPNDefault()
-	// Evolution(mandelbrotFitness, drawMandelbrot, popConfig, cppnConfig)
+	popConfig := config.PopulationDefault()
+	popConfig.Size = 64
+	popConfig.DistanceThreshold = 1
+	popConfig.DistanceThresholdEpsilon = 0.1
+	popConfig.TargetMinSpecies = 7
+	popConfig.TargetMaxSpecies = 13
+	popConfig.RecombinationPercent = 0.75
+	popConfig.LocalSearchGenerations = 0
+	popConfig.SharingFunctionConstants = []float64{1, 2, 0.4, 1}
+
+	cppnConfig := config.CPPNDefault()
+	cppnConfig.SensorNodes = 2
+	cppnConfig.OutputNodes = 3
+	cppnConfig.MinWeight = -1
+	cppnConfig.MaxWeight = 1
+	cppnConfig.MutationRatios = map[ma.MutationType]float64{
+		neat.MutationAddConnection:   0.2,
+		neat.MutationAddNode:         0.1,
+		neat.MutationMutateWeights:   0.6,
+		neat.MutationChangeAFunction: 0.1,
+	}
+
+	Evolution(MandelbrotFitness, DrawMandelbrotNetwork, popConfig, cppnConfig)
 }
