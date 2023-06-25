@@ -1,19 +1,21 @@
-! -> Start
-Start -> op K K
-Start -> op
+! -> op
 K -> const
 K -> var
-K -> op K K
-K -> - 0 K
-K -> / 1 K
+K -> op
 op -> +
 op -> -
 op -> *
 op -> /
-const -> 0
+op -> sqrt
++ -> K K
+- -> K K
+* -> K K
+/ -> K K
+sqrt -> K
 const -> 1
-0 -> _
+const -> 0
 1 -> _
+0 -> _
 var -> x
 var -> y
 x -> _
@@ -21,7 +23,7 @@ y -> _
 ~ -> !
 ~ -> _
 ~ -> ~
-~ -> Start
 ~ -> K
 ~ -> op
 ~ -> const
+~ -> var

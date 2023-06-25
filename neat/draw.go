@@ -61,6 +61,7 @@ var alphabet = map[string][2]int{
 	")": {21, 0},
 }
 
+// TODO: draw activation function
 func drawNode(x, y int, label string, font image.Image, canvas *image.RGBA) {
 	for i := 0; i < 15; i += 1 {
 		for j := 0; j < 9; j += 1 {
