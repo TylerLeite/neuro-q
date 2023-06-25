@@ -1,11 +1,7 @@
-! -> Start
-Start -> op K K
-Start -> H
-Start -> T
-Start -> S
+! -> op
 K -> const
 K -> q
-K -> op K K
+K -> op
 K -> H
 K -> T
 K -> S
@@ -22,18 +18,10 @@ q -> q4
 q -> q5
 q -> q6
 q -> q7
-# q -> q8
-# q -> q9
-# q -> q10
-# q -> q11
-# q -> q12
-# q -> q13
-# q -> q14
-# q -> q15
 const -> 0ket
 const -> 1ket
-CNOT -> _
-SWAP -> _
+CNOT -> K K
+SWAP -> K K
 q0 -> _
 q1 -> _
 q2 -> _
@@ -42,20 +30,11 @@ q4 -> _
 q5 -> _
 q6 -> _
 q7 -> _
-# q8 -> _
-# q9 -> _
-# q10 -> _
-# q11 -> _
-# q12 -> _
-# q13 -> _
-# q14 -> _
-# q15 -> _
 0ket -> _
 1ket -> _
 ~ -> !
 ~ -> _
 ~ -> ~
-~ -> Start
 ~ -> K
 ~ -> op
 ~ -> q

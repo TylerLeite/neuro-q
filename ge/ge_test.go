@@ -10,40 +10,42 @@ import (
 )
 
 func TestGrammar(t *testing.T) {
-	return
 	rules, symbolNames := LoadRulesFromFile("./grammars/clifford_plus_t.grmr")
 
 	fmt.Println(rules)
 	fmt.Println(symbolNames)
 
 	a := RootNodeFromRules(rules, symbolNames)
+	a.Value = 0x01
 	// op
 	b := RootNodeFromRules(rules, symbolNames)
-	b.Value = 0x03
+	b.Value = 0x02
 	a.AppendChild(b)
 	// CNOT
 	e := RootNodeFromRules(rules, symbolNames)
-	e.Value = 0x0A
+	e.Value = 0x09
 	b.AppendChild(e)
 
 	// K
 	c := RootNodeFromRules(rules, symbolNames)
-	a.AppendChild(c)
+	c.Value = 0x03
+	e.AppendChild(c)
 	// op
 	j := RootNodeFromRules(rules, symbolNames)
-	j.Value = 0x03
+	j.Value = 0x02
 	c.AppendChild(j)
 	// CNOT
 	o := RootNodeFromRules(rules, symbolNames)
-	o.Value = 0x0A
+	o.Value = 0x09
 	j.AppendChild(o)
 
 	// K
 	k := RootNodeFromRules(rules, symbolNames)
-	c.AppendChild(k)
+	k.Value = 0x03
+	o.AppendChild(k)
 	// q
 	f := RootNodeFromRules(rules, symbolNames)
-	f.Value = 0x09
+	f.Value = 0x05
 	k.AppendChild(f)
 	// q0
 	// h := RootNodeFromRules(rules, symbolNames)
@@ -52,26 +54,28 @@ func TestGrammar(t *testing.T) {
 
 	// K
 	l := RootNodeFromRules(rules, symbolNames)
-	c.AppendChild(l)
+	l.Value = 0x03
+	o.AppendChild(l)
 	// q
 	m := RootNodeFromRules(rules, symbolNames)
-	m.Value = 0x09
+	m.Value = 0x05
 	l.AppendChild(m)
 	// q1
 	n := RootNodeFromRules(rules, symbolNames)
-	n.Value = 0x0D
+	n.Value = 0x0C
 	m.AppendChild(n)
 
 	// K
 	d := RootNodeFromRules(rules, symbolNames)
-	a.AppendChild(d)
+	d.Value = 0x03
+	e.AppendChild(d)
 	// const
 	g := RootNodeFromRules(rules, symbolNames)
-	g.Value = 0x08
+	g.Value = 0x04
 	d.AppendChild(g)
 	// 1-ket
 	i := RootNodeFromRules(rules, symbolNames)
-	i.Value = 0x15
+	i.Value = 0x14
 	g.AppendChild(i)
 
 	fmt.Println(a)
@@ -111,7 +115,7 @@ func nodeValue(node *DerivationTree, x, y float64) float64 {
 
 func TestEvolution(t *testing.T) {
 	targetFunc := func(x, y float64) float64 {
-		return math.Sqrt(x*x + y*y)
+		return math.Sqrt(x*x + y)
 	}
 
 	fitnessOf := func(o ma.Organism) float64 {
@@ -120,13 +124,17 @@ func TestEvolution(t *testing.T) {
 
 		fitness := float64(0)
 
-		for x := float64(0); x < 100; x += 1 {
-			for y := float64(0); y < 100; y += 1 {
+		for x := float64(0); x < 4; x += 1 {
+			for y := float64(0); y < 4; y += 1 {
 				target := targetFunc(x, y)
 				value := nodeValue(program.SyntaxTree, x, y)
 
-				// TODO: scale with size of x + y
-				fitness -= math.Sqrt(target*target + value*value)
+				// fmt.Printf("t(%.2g, %.2g) = %.4g\n", x, y, target)
+				// fmt.Printf("f(%.2g, %.2g) = %.4g\n", x, y, value)
+				// fmt.Println(program.SyntaxTree.String())
+
+				// TODO: scale with size of x + y?
+				fitness -= (target - value) * (target - value)
 			}
 		}
 
@@ -142,30 +150,33 @@ func TestEvolution(t *testing.T) {
 
 	popCfg := config.PopulationDefault()
 	popCfg.Size = 512
-	popCfg.MaxEpochs = 100
-	popCfg.DistanceThreshold = 3
-	popCfg.DistanceThresholdEpsilon = 1
+	popCfg.MaxEpochs = 1000
+	popCfg.DistanceThreshold = 1
+	popCfg.DistanceThresholdEpsilon = 0.1
 	popCfg.TargetMinSpecies = 7
 	popCfg.TargetMaxSpecies = 15
 	popCfg.RecombinationPercent = 0.75
-	popCfg.LocalSearchGenerations = 8
+	popCfg.LocalSearchGenerations = 16
 
 	p := ma.NewPopulation(ma.Organism(seedProgram), fitnessOf)
-	// seedProgram.Population = p
 
 	p.Size = popCfg.Size
 	p.DistanceThreshold = popCfg.DistanceThreshold
-	p.CullingPercent = popCfg.CullingPercent
 	p.RecombinationPercent = popCfg.RecombinationPercent
-	p.MinimumEntropy = popCfg.MinimumEntropy
 	p.LocalSearchGenerations = popCfg.LocalSearchGenerations
-	p.DropoffAge = popCfg.DropoffAge
-
-	p.Cs = popCfg.SharingFunctionConstants // TODO: use copy()?
 
 	speciesTargetMin := popCfg.TargetMinSpecies
 	speciesTargetMax := popCfg.TargetMaxSpecies
 	distanceThresholdEpsilon := popCfg.DistanceThresholdEpsilon
+
+	p.CullingPercent = popCfg.CullingPercent
+	p.MinimumEntropy = popCfg.MinimumEntropy
+	p.DropoffAge = popCfg.DropoffAge
+	p.Cs = popCfg.SharingFunctionConstants
+
+	manualGenome := NewGenome([]byte{4, 0, 2, 0, 0, 2, 2, 0, 1, 0, 1, 0, 1, 1, 1, 1})
+	manualProgram := NewProgram(manualGenome, rules, symbolNames)
+	manualProgram.Compile()
 
 	fmt.Println("Generating...")
 	p.Generate()
@@ -183,14 +194,21 @@ func TestEvolution(t *testing.T) {
 			p.DistanceThreshold *= (1 - distanceThresholdEpsilon)
 		}
 
+		foundOptimalSolution := false
 		fmt.Println("Champion Genomes:")
 		for j, species := range p.Species {
 			championProgram := species.Champion().(*Program)
 			fitness := fitnessOf(championProgram)
 			fmt.Printf("\t%d (fitness = %.4g): %s\n", j+1, fitness, championProgram.GeneticCode().ToString())
+			if fitness == 0 {
+				fmt.Println(championProgram.SyntaxTree.String())
+				foundOptimalSolution = true
+			}
+		}
+
+		if foundOptimalSolution {
+			fmt.Println("Found an optimal solution, ending early")
+			break
 		}
 	}
-
-	a := RootNodeFromRules(rules, symbolNames)
-	fmt.Println(a)
 }

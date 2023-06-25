@@ -70,7 +70,9 @@ func (g *Genome) Mutate(typ ma.MutationType, args interface{}) {
 	case MutationAppendCodon:
 		g.Genes = append(g.Genes, randc)
 	case MutationRemoveCodon:
-		g.Genes = append(g.Genes[:randi], g.Genes[randi+1:]...)
+		if len(g.Genes) > 1 {
+			g.Genes = append(g.Genes[:randi], g.Genes[randi+1:]...)
+		}
 	case MutationMutateCodon:
 		g.Genes[randi] = randc
 	default:
@@ -130,37 +132,45 @@ func (p *Program) NewFromGeneticCode(dna ma.GeneticCode) ma.Organism {
 }
 
 func (p *Program) Crossover(others []ma.Organism) ma.Organism {
+	parents := make([]*Program, len(others)+1)
+	parents[0] = p
+	for i, other := range others {
+		parents[i+1] = other.(*Program)
+	}
+	codons := make([]byte, 0)
+
 	scale := float64(0)
-	crossoverPercents := make([]float64, len(others))
-	for i := 0; i < len(others); i += 1 {
+	crossoverPercents := make([]float64, len(parents))
+	for i := 0; i < len(crossoverPercents); i += 1 {
 		crossoverPercents[i] = rand.Float64()
 		scale += crossoverPercents[i]
 	}
-
 	for i := 0; i < len(crossoverPercents); i += 1 {
-		// normalize crossover points to the interval [0, 1]
+		// normalize crossover points to sum to 1
 		crossoverPercents[i] /= scale
 	}
 
 	cumulativeCrossoverPercents := make([]float64, len(crossoverPercents))
 	for i := 0; i < len(cumulativeCrossoverPercents); i += 1 {
-		for j := i - 1; j >= 0; j -= 1 {
+		for j := 0; j <= i; j += 1 {
 			cumulativeCrossoverPercents[i] += crossoverPercents[j]
 		}
 	}
 
-	codons := make([]byte, 0)
-
-	for i := 0; i < len(others); i += 1 {
-		// normalize crossover points to the interval [0, 1]
-		crossoverPercents[i] /= scale
-
+	for i, parent := range parents {
 		crossoverStart := 0
-		crossoverEnd := int(math.Ceil(cumulativeCrossoverPercents[i]*float64(len(others[i].GeneticCode().(*Genome).Genes))) - 1)
+		crossoverEnd := int(math.Min(math.Ceil(cumulativeCrossoverPercents[i]*float64(len(parent.DNA.Genes))), float64(len(parent.DNA.Genes))))
 		if i > 0 {
-			crossoverStart = int(math.Ceil(cumulativeCrossoverPercents[i-1]*float64(len(others[i].GeneticCode().(*Genome).Genes))) - 1)
+			crossoverStart = int(math.Min(math.Ceil(cumulativeCrossoverPercents[i-1]*float64(len(parent.DNA.Genes))), float64(len(parent.DNA.Genes))))
 		}
-		codons = append(codons, others[i].GeneticCode().(*Genome).Genes[crossoverStart:crossoverEnd]...)
+		codons = append(codons, parent.DNA.Genes[crossoverStart:crossoverEnd]...)
+	}
+
+	if len(codons) == 0 {
+		fmt.Println(parents[0].DNA)
+		fmt.Println(parents[1].DNA)
+		fmt.Println(cumulativeCrossoverPercents)
+		panic("uhoh :/\n")
 	}
 
 	child := NewProgram(NewGenome(codons), p.Rules, p.SymbolNames)

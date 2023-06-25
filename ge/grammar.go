@@ -105,6 +105,7 @@ func RootNodeFromRules(rules Rules, symbolNames SymbolNames) *DerivationTree {
 }
 
 // Quickly finish an incomplete derivation tree, filling in nodes with defaults
+// TODO: finish options e.g. wrapping operators
 func (t *DerivationTree) Finish() {
 	if len(t.Children) == 0 {
 		// Leaf node
