@@ -44,7 +44,7 @@ func NewPopulation(seed Organism, fitnessFunction FitnessFunction) *Population {
 		RecombinationPercent:   1,
 		MinimumEntropy:         0.5,
 		LocalSearchGenerations: 16,
-		DropoffAge:             15,
+		DropoffAge:             math.MaxInt, // Speciation off by default
 		DistanceThreshold:      math.MaxFloat64,
 		Cs:                     []float64{1, 1, 0.4, 0.1},
 	}

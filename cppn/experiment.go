@@ -312,6 +312,7 @@ func NoiseEvolution() {
 	popConfig.DistanceThresholdEpsilon = 0.1
 	popConfig.TargetMinSpecies = 7
 	popConfig.TargetMaxSpecies = 13
+	popConfig.DropoffAge = 15
 	popConfig.RecombinationPercent = 0.75
 	popConfig.LocalSearchGenerations = 0
 	popConfig.SharingFunctionConstants = []float64{1, 2, 0.4, 1}
@@ -484,6 +485,8 @@ func MandelbrotEvolution() {
 	popConfig.DistanceThresholdEpsilon = 0.1
 	popConfig.TargetMinSpecies = 14
 	popConfig.TargetMaxSpecies = 26
+	popConfig.DropoffAge = 15
+
 	popConfig.RecombinationPercent = 0.75
 	popConfig.LocalSearchGenerations = 8
 	popConfig.SharingFunctionConstants = []float64{1, 2, 0.4, 1}

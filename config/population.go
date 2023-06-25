@@ -39,7 +39,7 @@ func PopulationDefault() *Population {
 
 		LocalSearchGenerations:   16,
 		MaxEpochs:                256,
-		DropoffAge:               15,
+		DropoffAge:               math.MaxInt,
 		SharingFunctionConstants: []float64{1, 1, 0.4, 0.1},
 
 		Epoch: EpochDefault(),

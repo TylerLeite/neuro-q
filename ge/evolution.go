@@ -185,6 +185,7 @@ func (p *Program) LoadGeneticCode(dna ma.GeneticCode) {
 	p.DNA = dna.(*Genome)
 }
 
+// TODO: support for identity detection, automatic optimization of generated function (plus output metric for how un-optimized a tree is)
 func (p *Program) Compile() error {
 	codons := p.DNA.Genes
 	root := RootNodeFromRules(p.Rules, p.SymbolNames)
