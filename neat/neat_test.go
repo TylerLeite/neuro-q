@@ -91,7 +91,7 @@ func TestMassiveDraw(t *testing.T) {
 
 // 		UsesBias: true,
 // 	}
-// 	fmt.Println(seedGenome.ToString())
+// 	fmt.Println(seedGenome.String())
 
 // 	network := NewNetwork(seedGenome, nil)
 // 	fitness = XorFitness(ma.Organism(network))

@@ -55,7 +55,7 @@ func XorFitness(o ma.Organism) float64 {
 
 			result := out.Value()
 			if math.IsNaN(result) {
-				log.Book(n.ToString(), log.DEBUG)
+				log.Book(n.String(), log.DEBUG)
 				panic("NaN network")
 			}
 			log.Book(fmt.Sprintf("Inputs were: %v and output was: %0.2g\n", inputValues, out.value), log.DEBUG, log.DEBUG_PROPAGATION)
@@ -110,7 +110,7 @@ func XorVerify(o ma.Organism) int {
 
 			outValue := out.Value()
 			if math.IsNaN(outValue) {
-				log.Book(n.ToString(), log.DEBUG)
+				log.Book(n.String(), log.DEBUG)
 				panic("NaN network")
 			}
 
@@ -200,7 +200,7 @@ func XorEvolution() error {
 
 			if math.IsInf(championFitness, 1) {
 				fmt.Println("Found a fully verified network!")
-				fmt.Println(championNetwork.ToString())
+				fmt.Println(championNetwork.String())
 				fmt.Println(championNetwork.DNA.ToPretty())
 				fullyVerified = true
 			}

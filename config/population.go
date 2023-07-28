@@ -1,6 +1,10 @@
 package config
 
-import "math"
+import (
+	"math"
+
+	"github.com/TylerLeite/neuro-q/ma"
+)
 
 type Population struct {
 	Size                     int
@@ -44,6 +48,23 @@ func PopulationDefault() *Population {
 
 		Epoch: EpochDefault(),
 	}
+}
+
+// new ma.Population from a config.Population
+func (cfg *Population) Configure(seed ma.Organism, fitnessFunction ma.FitnessFunction) *ma.Population {
+	p := ma.NewPopulation(seed, fitnessFunction)
+
+	p.Size = cfg.Size
+	p.DistanceThreshold = cfg.DistanceThreshold
+	p.CullingPercent = cfg.CullingPercent
+	p.RecombinationPercent = cfg.RecombinationPercent
+	p.MinimumEntropy = cfg.MinimumEntropy
+	p.LocalSearchGenerations = cfg.LocalSearchGenerations
+	p.DropoffAge = cfg.DropoffAge
+	p.Cs = make([]float64, len(cfg.SharingFunctionConstants))
+	copy(p.Cs, cfg.SharingFunctionConstants)
+
+	return p
 }
 
 func (p *Population) Load(fName string) {

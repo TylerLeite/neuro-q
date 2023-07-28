@@ -33,7 +33,7 @@ func (e *EdgeGene) Copy() *EdgeGene {
 	return &newEdge
 }
 
-func (e *EdgeGene) ToString() string {
+func (e *EdgeGene) String() string {
 	enabledStr := "|"
 	if !e.Enabled {
 		enabledStr = "x"

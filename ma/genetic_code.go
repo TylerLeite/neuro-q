@@ -14,5 +14,5 @@ type GeneticCode interface {
 
 	DistanceFrom(GeneticCode, ...float64) float64
 
-	ToString() string // Genetic code as a string, used for calculating population entropy
+	String() string // Genetic code as a string, used for calculating population entropy
 }

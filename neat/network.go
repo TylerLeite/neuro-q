@@ -53,10 +53,10 @@ func NewNetwork(dna *Genome, p *ma.Population) *Network {
 	return &n
 }
 
-func (n *Network) ToString() string {
+func (n *Network) String() string {
 	nodesRepr := ""
 	for _, node := range n.Nodes {
-		nodesRepr += node.ToString()
+		nodesRepr += node.String()
 	}
 	return nodesRepr
 }
@@ -109,7 +109,7 @@ func (n *Network) RandomNeighbor() ma.Organism {
 		}
 
 		if foundErrors {
-			log.Book(fmt.Sprintf("vvvvvvvvvv\n%s\n %s\n", network.ToString(), neighbor.GeneticCode().ToString()), log.DEBUG_MUTATION)
+			log.Book(fmt.Sprintf("vvvvvvvvvv\n%s\n %s\n", network.String(), neighbor.GeneticCode().String()), log.DEBUG_MUTATION)
 			panic("Found errors in RandomNeighbor()")
 		}
 	}
@@ -296,7 +296,7 @@ func (n *Network) Compile() error {
 	if log.DEBUG_COMPILE {
 		for i, n := range n.Nodes {
 			if n == nil || fmt.Sprintf("%d", i) != n.Label {
-				log.Book(fmt.Sprintf("%s\n", n.ToString()), log.DEBUG, log.DEBUG_COMPILE)
+				log.Book(fmt.Sprintf("%s\n", n.String()), log.DEBUG, log.DEBUG_COMPILE)
 				panic("Nodes not in order while compiling!")
 			}
 		}
@@ -310,7 +310,7 @@ func (n *Network) Compile() error {
 		}
 		log.Book(fmt.Sprintf("Adding connection from %d to %d\n", v.InNode, v.OutNode), log.DEBUG, log.DEBUG_COMPILE)
 		newEdge := n.Nodes[v.InNode].AddChild(n.Nodes[v.OutNode])
-		newEdge.Label = fmt.Sprintf("%d (%s)", v.InnovationNumber, MutationTypeToString[v.Origin])
+		newEdge.Label = fmt.Sprintf("%d (%s)", v.InnovationNumber, MutationTypeString[v.Origin])
 		newEdge.Weight = v.Weight
 		n.Edges = append(n.Edges, newEdge)
 	}
@@ -354,7 +354,7 @@ func (n *Network) Activate(inputs []float64, sensors, outputs []*Node) error {
 		sanity -= 1
 	}
 
-	log.Book(fmt.Sprintf("\nProp trace\n%s\nGenome:\n\t%s\n%s\n", n.ToString(), n.DNA.NodesToString(), n.DNA.ToPretty()), log.DEBUG, log.DEBUG_PROPAGATION)
+	log.Book(fmt.Sprintf("\nProp trace\n%s\nGenome:\n\t%s\n%s\n", n.String(), n.DNA.NodesString(), n.DNA.ToPretty()), log.DEBUG, log.DEBUG_PROPAGATION)
 
 	if sanity <= 0 {
 		return errors.New("canceling activation, too many loops in the network")

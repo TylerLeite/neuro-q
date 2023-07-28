@@ -54,13 +54,13 @@ func NewNode(activation ActivationFunction, typ NodeType) *Node {
 	return &n
 }
 
-// TODO: rename this to ToPretty, more compact ToString
-func (n *Node) ToString() string {
+// TODO: rename this to ToPretty, more compact String
+func (n *Node) String() string {
 	inRepr := "< No inputs >"
 	if len(n.In) > 0 {
 		inRepr = "in: "
 		for _, edge := range n.In {
-			inRepr += edge.ToString() + ", "
+			inRepr += edge.String() + ", "
 		}
 	}
 
@@ -68,7 +68,7 @@ func (n *Node) ToString() string {
 	if len(n.Out) > 0 {
 		outRepr = "out: "
 		for _, edge := range n.Out {
-			outRepr += edge.ToString() + ", "
+			outRepr += edge.String() + ", "
 		}
 	}
 

@@ -82,7 +82,7 @@ func (e *EvolvingString) DistanceFrom(gc GeneticCode, cs ...float64) float64 {
 	return 0
 }
 
-func (e *EvolvingString) ToString() string {
+func (e *EvolvingString) String() string {
 	return e.Code
 }
 
@@ -157,7 +157,7 @@ func StringOrganismFitness(o Organism) float64 {
 	s := o.(*StringOrganism)
 	var fitness float64
 
-	dna := s.GeneticCode().ToString()
+	dna := s.GeneticCode().String()
 
 	// Length gives up to 10 fitness point, based on how close it is to 8 characters
 	lenFactor := float64(len(dna) - 7)
@@ -225,7 +225,7 @@ func TestEvolution(t *testing.T) {
 
 	averageFitness := p1.Species[0].AverageFitness()
 	champion := p1.Species[0].Champion().(*StringOrganism)
-	championGenome := champion.Genome.ToString()
+	championGenome := champion.Genome.String()
 	championFitness := p1.FitnessOf(Organism(champion))
 
 	fmt.Println(championGenome, championFitness, "(", averageFitness/float64(len(p1.Species[0].Members)), ")")

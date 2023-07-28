@@ -20,7 +20,7 @@ func NewEdge(n, c *Node) *Edge {
 	return e
 }
 
-func (e *Edge) ToString() string {
+func (e *Edge) String() string {
 	return fmt.Sprintf("{%s | %s %s @ %.2g}", e.Label, e.In.Label, e.Out.Label, e.Weight)
 }
 

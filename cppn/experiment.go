@@ -113,7 +113,7 @@ func Evolution(
 			drawFn(championNetwork, fmt.Sprintf("cppn/drawn/%d_%d.png", i, j))
 
 			fitness := fn(championNetwork)
-			fmt.Printf("\t%d (fitness = %.4g): %s\n", j+1, fitness, championNetwork.DNA.ToString())
+			fmt.Printf("\t%d (fitness = %.4g): %s\n", j+1, fitness, championNetwork.DNA.String())
 		}
 	}
 }
@@ -190,7 +190,7 @@ func ActivateNetwork(n *neat.Network, dimensions []int, otherInputs []NetworkInp
 
 		for j, outputNode := range outputNodes {
 			if math.IsNaN(outputNode.Value()) {
-				log.Book(n.ToString(), log.DEBUG)
+				log.Book(n.String(), log.DEBUG)
 				panic("NaN network")
 			}
 

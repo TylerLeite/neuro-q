@@ -111,7 +111,7 @@ func SmallValueApproximationEvolution() {
 		for j, species := range p.Species {
 			championProgram := species.Champion().(*Program)
 			fitness := fitnessOf(championProgram)
-			fmt.Printf("\t%d (fitness = %.4g): %s\n", j+1, fitness, championProgram.GeneticCode().ToString())
+			fmt.Printf("\t%d (fitness = %.4g): %s\n", j+1, fitness, championProgram.GeneticCode().String())
 
 			if fitness > maxFitness {
 				maxFitness = fitness

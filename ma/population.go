@@ -116,7 +116,7 @@ func (p *Population) Generate() {
 		newOrganism := p.Seed.Copy()
 		newOrganism.GeneticCode().Randomize()
 
-		log.Book(fmt.Sprintf("\t%s\n", newOrganism.GeneticCode().ToString()), log.DEBUG, log.DEBUG_GENERATE)
+		log.Book(fmt.Sprintf("\t%s\n", newOrganism.GeneticCode().String()), log.DEBUG, log.DEBUG_GENERATE)
 
 		p.Species[0].Members = append(p.Species[0].Members, newOrganism)
 	}
@@ -271,7 +271,7 @@ func (p *Population) Epoch() ([]GeneticCode, []float64, error) {
 		champions[i] = champion.GeneticCode()
 		fitnesses[i] = p.FitnessOf(champion)
 
-		log.Book(fmt.Sprintf("species #%d/%d: f=%.2g\n%s\n", i+1, len(p.Species), fitnesses[i], champions[i].ToString()), log.DEBUG, log.DEBUG_EPOCH)
+		log.Book(fmt.Sprintf("species #%d/%d: f=%.2g\n%s\n", i+1, len(p.Species), fitnesses[i], champions[i].String()), log.DEBUG, log.DEBUG_EPOCH)
 	}
 
 	log.Break(log.NL, log.DEBUG, log.DEBUG_EPOCH)

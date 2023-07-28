@@ -84,7 +84,7 @@ func (g *Genome) DistanceFrom(other ma.GeneticCode, args ...float64) float64 {
 	return float64(len(g.Genes) - len(other.(*Genome).Genes))
 }
 
-func (g *Genome) ToString() string {
+func (g *Genome) String() string {
 	return fmt.Sprintf("%v", g.Genes)
 }
 

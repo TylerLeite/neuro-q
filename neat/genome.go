@@ -118,7 +118,7 @@ func (g *Genome) Randomize() {
 	g.PopulateNodeSlices()
 }
 
-func (g *Genome) ToString() string {
+func (g *Genome) String() string {
 	// Need to know how many nodes we have to find out how many digits we need per node
 	nNodes := len(g.SensorNodes) + len(g.HiddenNodes) + len(g.OutputNodes)
 	if g.UsesBias {
@@ -151,7 +151,7 @@ func (g *Genome) ToString() string {
 func (g *Genome) ToPretty() string {
 	edges := "["
 	for _, v := range g.Connections {
-		edges += v.ToString() + " "
+		edges += v.String() + " "
 	}
 	edges = edges[:len(edges)-1] + "]"
 
@@ -168,7 +168,7 @@ func (g *Genome) ToPretty() string {
 }
 
 // TODO: bias nodes
-func (g *Genome) NodesToString() string {
+func (g *Genome) NodesString() string {
 	nodes := "Sensor: ["
 	for _, v := range g.SensorNodes {
 		nodes += fmt.Sprintf("%d ", v)
@@ -240,7 +240,7 @@ const (
 	MutationDisableConnectionStr = "Disable a mutation"
 )
 
-var MutationTypeToString = map[ma.MutationType]string{
+var MutationTypeString = map[ma.MutationType]string{
 	NoMutation:                NoMutationStr,
 	MutationAddConnection:     MutationAddConnectionStr,
 	MutationAddNode:           MutationAddNodeStr,
@@ -250,7 +250,7 @@ var MutationTypeToString = map[ma.MutationType]string{
 }
 
 func (g *Genome) ListMutations() map[string]ma.MutationType {
-	// Maybe just send MutationTypeToString?
+	// Maybe just send MutationTypeString?
 	m := make(map[string]ma.MutationType)
 	m[MutationAddConnectionStr] = MutationAddConnection
 	m[MutationAddNodeStr] = MutationAddNode
@@ -388,7 +388,7 @@ func (g *Genome) AddConnection(feedForward bool) error {
 		for _, c := range g.Connections {
 			if c.InNode == uint(r1) && c.OutNode == uint(r2) {
 				duplicateEdge = true
-				log.Book(fmt.Sprintf("Duplicate edge: %s\n", c.ToString()), log.DEBUG, log.DEBUG_ADD_CONNECTION)
+				log.Book(fmt.Sprintf("Duplicate edge: %s\n", c.String()), log.DEBUG, log.DEBUG_ADD_CONNECTION)
 				break
 			}
 		}
@@ -443,7 +443,7 @@ func (g *Genome) AddNode() error {
 		return NewAddNodeError("Could not find an enbabled gene to bifurcate")
 	}
 
-	log.Book(fmt.Sprintf("Adding a node to connection: %s\n", randomGene.ToString()), log.DEBUG, log.DEBUG_ADD_NODE)
+	log.Book(fmt.Sprintf("Adding a node to connection: %s\n", randomGene.String()), log.DEBUG, log.DEBUG_ADD_NODE)
 
 	// Need to add a node between the two nodes of the existing connection. Figure out what to call that node
 	nextNode := uint(len(g.SensorNodes) + len(g.HiddenNodes) + len(g.OutputNodes))
@@ -461,7 +461,7 @@ func (g *Genome) AddNode() error {
 		g.ActivationFunctions[nextNode] = fn
 	}
 
-	log.Book(fmt.Sprintf("New edges:\n%s\n%s\n", new1.ToString(), new2.ToString()), log.DEBUG, log.DEBUG_ADD_NODE)
+	log.Book(fmt.Sprintf("New edges:\n%s\n%s\n", new1.String(), new2.String()), log.DEBUG, log.DEBUG_ADD_NODE)
 
 	// Disable the old connection
 	randomGene.Enabled = false

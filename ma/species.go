@@ -11,8 +11,6 @@ import (
 	"github.com/TylerLeite/neuro-q/log"
 )
 
-// NOTE: current idea of a population fits more closely to a species, actually
-
 // Used for sorting by fitness
 type SortableOrganisms struct {
 	organisms []Organism
@@ -53,12 +51,12 @@ func NewSpecies(p *Population) *Species {
 	return &s
 }
 
-func (s *Species) ToString() string {
+func (s *Species) String() string {
 	out := ""
 	champ := s.Champion()
 	for i, o := range s.Members {
 		distance := o.GeneticCode().DistanceFrom(champ.GeneticCode(), s.Population.Cs...)
-		out += fmt.Sprintf("%d [%.2g]: %s\n", i, distance, o.GeneticCode().ToString())
+		out += fmt.Sprintf("%d [%.2g]: %s\n", i, distance, o.GeneticCode().String())
 	}
 	return out
 }
@@ -153,6 +151,9 @@ func (s *Species) Selection() {
 // Recombination (mating)
 func (s *Species) Recombination(culledPopulationCount float64) {
 	// Store children in a new slice during recombination so they aren't chosen as parents
+
+	// TODO: Ability to enable fitness sharing in config (speciesPopulationPercent based on species fitness, scaled by current species size)
+	// NOTE: with fitness sharing enabled, negative fitness must be disallowed -> translate fitness values by -(minimum fitness in population)
 	thisSpeciesPopulationPercent := float64(len(s.Members)) / culledPopulationCount
 	speciesTargetSize := int(math.Round(float64(s.Population.Size) * thisSpeciesPopulationPercent))
 	numberToRecombine := int(math.Round(float64(speciesTargetSize) * s.Population.RecombinationPercent))
@@ -214,7 +215,7 @@ func (s *Species) UpdateFitnessHistory() {
 func (s *Species) HasConverged() bool {
 	corpus := ""
 	for _, v := range s.Members {
-		corpus += v.GeneticCode().ToString()
+		corpus += v.GeneticCode().String()
 	}
 
 	// Check entropy by compressing the population
